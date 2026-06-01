@@ -1,0 +1,82 @@
+name: Manual Migrate (dispatch)
+
+on:
+  workflow_dispatch:
+    inputs:
+      backup:
+        description: 'Create DB backup before running migrations'
+        required: false
+        default: 'false'
+      deploy_api:
+        description: 'Trigger API deploy hook after successful migrations'
+        required: false
+        default: 'false'
+      deploy_web:
+        description: 'Trigger web deploy hook after successful migrations'
+        required: false
+        default: 'false'
+
+jobs:
+  migrate:
+    name: Run migrations (manual)
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+      RENDER_API_DEPLOY_HOOK_URL: ${{ secrets.RENDER_API_DEPLOY_HOOK_URL }}
+      RENDER_WEB_DEPLOY_HOOK_URL: ${{ secrets.RENDER_WEB_DEPLOY_HOOK_URL }}
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Validate inputs
+        run: |
+          echo "backup=${{ github.event.inputs.backup }}"
+          echo "deploy_api=${{ github.event.inputs.deploy_api }}"
+          echo "deploy_web=${{ github.event.inputs.deploy_web }}"
+
+      - name: Optional DB backup
+        if: ${{ github.event.inputs.backup == 'true' }}
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+          TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
+          FILENAME=db-backup-${TIMESTAMP}.dump
+          pg_dump --format=custom --file=$FILENAME "$DATABASE_URL"
+          echo "Backup created: $FILENAME"
+        shell: bash
+
+      - name: Upload backup artifact
+        if: ${{ github.event.inputs.backup == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup
+          path: db-backup-*.dump
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+
+      - name: Install migrate CLI
+        run: go install github.com/golang-migrate/migrate/v4/cmd/migrate@v4.17.1
+
+      - name: Run migrations
+        run: bash ./backend/scripts/migrate.sh up
+
+      - name: Trigger API deploy hook
+        if: ${{ github.event.inputs.deploy_api == 'true' }}
+        run: |
+          if [ -z "$RENDER_API_DEPLOY_HOOK_URL" ]; then
+            echo "RENDER_API_DEPLOY_HOOK_URL not set"
+            exit 1
+          fi
+          curl -fsS -X POST "$RENDER_API_DEPLOY_HOOK_URL"
+
+      - name: Trigger web deploy hook
+        if: ${{ github.event.inputs.deploy_web == 'true' }}
+        run: |
+          if [ -z "$RENDER_WEB_DEPLOY_HOOK_URL" ]; then
+            echo "RENDER_WEB_DEPLOY_HOOK_URL not set"
+            exit 1
+          fi
+          curl -fsS -X POST "$RENDER_WEB_DEPLOY_HOOK_URL"

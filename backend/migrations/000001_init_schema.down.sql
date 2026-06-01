@@ -1,0 +1,12 @@
+DROP TABLE IF EXISTS inventory;
+DROP TABLE IF EXISTS salary_payments;
+DROP TABLE IF EXISTS expenses;
+DROP TABLE IF EXISTS income;
+DROP TABLE IF EXISTS invoice_line_items;
+DROP TABLE IF EXISTS invoices;
+DROP TABLE IF EXISTS vendors;
+DROP TABLE IF EXISTS request_images;
+DROP TABLE IF EXISTS service_requests;
+DROP TABLE IF EXISTS workers;
+DROP TABLE IF EXISTS services;
+DROP TABLE IF EXISTS users;

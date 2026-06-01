@@ -1,0 +1,8 @@
+.env
+.env.*
+/bin/
+/server
+/seed
+/sqlc
+*.log
+coverage/

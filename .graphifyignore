@@ -1,0 +1,13 @@
+.kiro
+.agents
+.opencode
+.lovable
+
+node_modules/
+dist/
+*.generated.py
+
+# only index src/, ignore everything else
+*
+!src/
+!src/**

@@ -1,0 +1,42 @@
+proc_log:
+  dir: "<CONFIG_DIR>/logs/mprocs"
+  mode: append
+
+procs:
+  db:
+    shell: "docker compose up db"
+    cwd: "<CONFIG_DIR>/backend"
+
+  api:
+    shell: "make dev"
+    cwd: "<CONFIG_DIR>/backend"
+    env:
+      ENV: development
+    stop:
+      send-keys: ["<C-c>"]
+
+  web:
+    shell: "bun run dev --host"
+    cwd: "<CONFIG_DIR>/frontend"
+    stop:
+      send-keys: ["<C-c>"]
+
+  web-tests:
+    shell: "bun run test:watch"
+    cwd: "<CONFIG_DIR>/frontend"
+    autostart: false
+
+  api-tests:
+    shell: "go test ./... -v"
+    cwd: "<CONFIG_DIR>/backend"
+    autostart: false
+
+  lint-web:
+    shell: "bun run lint"
+    cwd: "<CONFIG_DIR>/frontend"
+    autostart: false
+
+  sqlc:
+    shell: "make sqlc"
+    cwd: "<CONFIG_DIR>/backend"
+    autostart: false
