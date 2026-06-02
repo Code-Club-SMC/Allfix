@@ -1,9 +1,11 @@
 services:
   - type: web
     name: allfix-api
-    runtime: docker
+    runtime: go
     plan: free
     rootDir: backend
+    buildCommand: CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o allfix ./cmd/server
+    startCommand: ./allfix
     healthCheckPath: /health
     envVars:
       - key: ENV
