@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Phone, Shield, MapPin } from "lucide-react";
+import { MessageCircle, Phone, Shield, MapPin } from "lucide-react";
 
 export const ClientShell = ({ children }: { children: ReactNode }) => (
   <div className="flex min-h-dvh flex-col bg-background text-foreground">
@@ -25,14 +25,27 @@ export const ClientShell = ({ children }: { children: ReactNode }) => (
           </div>
         </Link>
 
-        {/* Contact pill */}
-        <a
-          href="tel:+92300000000"
-          className="group flex items-center gap-2 rounded-full border border-border/50 bg-surface/60 px-3.5 py-2 text-[12px] text-muted-foreground transition-all hover:border-primary/30 hover:bg-surface hover:text-foreground"
-        >
-          <Phone className="h-3.5 w-3.5 transition-transform group-hover:scale-110" strokeWidth={1.75} />
-          <span className="hidden sm:inline font-medium">+92 300 000 0000</span>
-        </a>
+        {/* Contact pills */}
+        <div className="flex items-center gap-2">
+          <a
+            href="tel:+923115333222"
+            aria-label="Call us"
+            className="group flex items-center gap-2 rounded-full border border-border/50 bg-surface/60 px-3.5 py-2 text-[12px] text-muted-foreground transition-all hover:border-primary/30 hover:bg-surface hover:text-foreground"
+          >
+            <Phone className="h-3.5 w-3.5 transition-transform group-hover:scale-110" strokeWidth={1.75} />
+            <span className="hidden sm:inline font-medium">+92 311 5333222</span>
+          </a>
+          <a
+            href="https://wa.me/923115333222"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Chat on WhatsApp"
+            className="group flex items-center gap-2 rounded-full border border-border/50 bg-[#25D366]/10 px-3.5 py-2 text-[12px] text-muted-foreground transition-all hover:border-[#25D366]/40 hover:bg-[#25D366]/15 hover:text-foreground"
+          >
+            <MessageCircle className="h-3.5 w-3.5 text-[#25D366] transition-transform group-hover:scale-110" strokeWidth={1.75} />
+            <span className="hidden sm:inline font-medium">WhatsApp</span>
+          </a>
+        </div>
       </div>
     </header>
 
