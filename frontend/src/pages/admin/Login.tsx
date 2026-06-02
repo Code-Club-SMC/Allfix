@@ -1,13 +1,18 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useLogin } from "@/hooks/useAuth";
+import { Navigate, useNavigate } from "react-router-dom";
+import { useLogin, useSession } from "@/hooks/useAuth";
 
 const Login = () => {
 	const navigate = useNavigate();
+	const { data: session, isLoading: sessionLoading } = useSession();
 	const { mutate: login, isPending, error } = useLogin();
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [wrongRole, setWrongRole] = useState(false);
+
+	if (!sessionLoading && session?.user?.role === "admin") {
+		return <Navigate to="/admin" replace />;
+	}
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();

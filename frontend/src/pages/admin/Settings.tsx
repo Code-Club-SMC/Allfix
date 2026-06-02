@@ -1,4 +1,4 @@
-import { AlertCircle, AlertTriangle, Loader2, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button, Field, TextArea, TextInput } from "@/components/cb/Form";
@@ -10,7 +10,7 @@ import {
 	useServicesHierarchical,
 	useUpdateService,
 } from "@/hooks/useServices";
-import { useClearData, useSeedData } from "@/hooks/useAdmin";
+import { useClearData } from "@/hooks/useAdmin";
 
 const ICON_OPTIONS = [
 	"wrench",
@@ -47,7 +47,6 @@ const Settings = () => {
 		error: updateError,
 	} = useUpdateService();
 	const { mutate: deleteService, isPending: deleting } = useDeleteService();
-	const { mutate: seedData, isPending: isSeeding } = useSeedData();
 	const { mutate: clearData, isPending: isClearing } = useClearData();
 
 	const [showAdd, setShowAdd] = useState(false);
@@ -350,26 +349,9 @@ const Settings = () => {
 				<div className="px-5 py-4">
 					<h2 className="text-[14px] font-semibold">Data Management</h2>
 					<p className="mt-1 text-[12px] text-muted-foreground">
-						Seed demo data or clear the entire database.
+						Clear the entire database.
 					</p>
 					<div className="mt-4 flex flex-wrap gap-3">
-						<Button
-							size="sm"
-							variant="outline"
-							disabled={isSeeding}
-							onClick={() => {
-							if (confirm("Seed 50 clients, 500 requests, and ~180 invoices?")) {
-								seedData(undefined, { onSuccess: () => toast.success("Seeded successfully!") });
-							}
-							}}
-						>
-							{isSeeding ? (
-								<Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-							) : (
-								<RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-							)}
-							Seed Demo Data
-						</Button>
 						<Button
 							size="sm"
 							variant="outline"

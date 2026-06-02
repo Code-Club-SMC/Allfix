@@ -67,7 +67,7 @@ const Sidebar = () => {
         ))}
       </nav>
       <div className="border-t border-border px-5 py-3 text-[11px] text-muted-foreground">
-        v1.0 · Karachi office
+        v1.0 · Islamabad office
       </div>
     </aside>
   );

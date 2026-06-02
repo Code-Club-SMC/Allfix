@@ -794,19 +794,6 @@ export function useDepositToAccount() {
 	});
 }
 
-export function useSeedData() {
-	const queryClient = useQueryClient();
-	return useMutation({
-		mutationFn: () =>
-			apiFetch("/api/admin/data/seed", { method: "POST" }),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["admin_invoices"] });
-			queryClient.invalidateQueries({ queryKey: ["admin_requests"] });
-			queryClient.invalidateQueries({ queryKey: ["admin_clients"] });
-		},
-	});
-}
-
 export function useClearData() {
 	const queryClient = useQueryClient();
 	return useMutation({

@@ -1110,7 +1110,7 @@ const Invoices = () => {
 									Allfix
 								</div>
 								<div className="text-[12px] text-muted-foreground">
-									Karachi, Pakistan
+									Islamabad, Pakistan
 								</div>
 								<div className="text-[12px] text-muted-foreground">
 									billing@allfix.pk
