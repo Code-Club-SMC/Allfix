@@ -2,6 +2,7 @@ services:
   - type: web
     name: allfix-api
     runtime: docker
+    plan: free
     rootDir: backend
     healthCheckPath: /health
     envVars:
@@ -27,6 +28,7 @@ services:
   - type: web
     name: allfix-web
     runtime: static
+    plan: free
     rootDir: frontend
     buildCommand: bun install --frozen-lockfile && bun run build
     staticPublishPath: dist
@@ -40,7 +42,7 @@ services:
 
 databases:
   - name: allfix-db
-    plan: basic-256mb
+    plan: free
     postgresMajorVersion: "16"
     databaseName: allfix
     user: allfix
