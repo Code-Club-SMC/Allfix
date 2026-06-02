@@ -35,6 +35,32 @@ jobs:
           echo "deploy_api=${{ github.event.inputs.deploy_api }}"
           echo "deploy_web=${{ github.event.inputs.deploy_web }}"
 
+      - name: Preflight: verify required secrets
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "ERROR: PROD_DATABASE_URL repository secret is not set. Set it in Settings → Secrets → Actions." >&2
+            exit 1
+          fi
+          echo "Preflight OK: DATABASE_URL is set"
+
+      - name: Preflight: check API hook secret (when requested)
+        if: ${{ github.event.inputs.deploy_api == 'true' }}
+        run: |
+          if [ -z "$RENDER_API_DEPLOY_HOOK_URL" ]; then
+            echo "ERROR: RENDER_API_DEPLOY_HOOK_URL repository secret is not set but deploy_api requested." >&2
+            exit 1
+          fi
+          echo "Preflight OK: RENDER_API_DEPLOY_HOOK_URL is set"
+
+      - name: Preflight: check Web hook secret (when requested)
+        if: ${{ github.event.inputs.deploy_web == 'true' }}
+        run: |
+          if [ -z "$RENDER_WEB_DEPLOY_HOOK_URL" ]; then
+            echo "ERROR: RENDER_WEB_DEPLOY_HOOK_URL repository secret is not set but deploy_web requested." >&2
+            exit 1
+          fi
+          echo "Preflight OK: RENDER_WEB_DEPLOY_HOOK_URL is set"
+
       - name: Optional DB backup
         if: ${{ github.event.inputs.backup == 'true' }}
         run: |

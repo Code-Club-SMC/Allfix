@@ -64,6 +64,14 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
+      - name: Preflight: verify required secrets
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "ERROR: PROD_DATABASE_URL repository secret is not set. Set it in Settings → Secrets → Actions." >&2
+            exit 1
+          fi
+          echo "Preflight OK: DATABASE_URL is set"
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -83,6 +91,16 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
+      - name: Preflight: verify API deploy hook secret
+        env:
+          RENDER_API_DEPLOY_HOOK_URL: ${{ secrets.RENDER_API_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$RENDER_API_DEPLOY_HOOK_URL" ]; then
+            echo "ERROR: RENDER_API_DEPLOY_HOOK_URL repository secret is not set." >&2
+            exit 1
+          fi
+          echo "Preflight OK: RENDER_API_DEPLOY_HOOK_URL is set"
+
       - name: Trigger Render API deploy hook
         env:
           RENDER_API_DEPLOY_HOOK_URL: ${{ secrets.RENDER_API_DEPLOY_HOOK_URL }}
@@ -102,6 +120,16 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
+      - name: Preflight: verify Web deploy hook secret
+        env:
+          RENDER_WEB_DEPLOY_HOOK_URL: ${{ secrets.RENDER_WEB_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$RENDER_WEB_DEPLOY_HOOK_URL" ]; then
+            echo "ERROR: RENDER_WEB_DEPLOY_HOOK_URL repository secret is not set." >&2
+            exit 1
+          fi
+          echo "Preflight OK: RENDER_WEB_DEPLOY_HOOK_URL is set"
+
       - name: Trigger Render web deploy hook
         env:
           RENDER_WEB_DEPLOY_HOOK_URL: ${{ secrets.RENDER_WEB_DEPLOY_HOOK_URL }}
