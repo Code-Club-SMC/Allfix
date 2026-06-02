@@ -11,6 +11,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+
 	"github.com/AbdulRehman-z/allfix/internal/config"
 	"github.com/AbdulRehman-z/allfix/internal/db"
 	sqlcdb "github.com/AbdulRehman-z/allfix/internal/db/sqlc"
@@ -36,6 +40,11 @@ func main() {
 	}
 	defer pool.Close()
 	slog.Info("connected to database")
+
+	if err := runMigrations(cfg.DatabaseURL); err != nil {
+		slog.Error("run migrations", "error", err)
+		os.Exit(1)
+	}
 
 	queries := sqlcdb.New(pool)
 	r := router.New(cfg, pool, queries)
@@ -73,4 +82,18 @@ func main() {
 
 	<-done
 	slog.Info("server stopped")
+}
+
+func runMigrations(databaseURL string) error {
+	m, err := migrate.New("file://migrations", databaseURL)
+	if err != nil {
+		return fmt.Errorf("create migrate instance: %w", err)
+	}
+
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("run migrations: %w", err)
+	}
+
+	slog.Info("migrations complete")
+	return nil
 }
