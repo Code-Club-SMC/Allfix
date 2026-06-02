@@ -16,9 +16,26 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
+# ─── Preserve command-line env vars before sourcing .env files ────────────────
+# Command-line env vars take precedence over .env file values
+SAVED_BASE_URL_LOCAL="${BASE_URL_LOCAL:-}"
+SAVED_BOOTSTRAP_SECRET_LOCAL="${BOOTSTRAP_SECRET_LOCAL:-}"
+SAVED_ADMIN_BOOTSTRAP_SECRET="${ADMIN_BOOTSTRAP_SECRET:-}"
+SAVED_ADMIN_NAME="${ADMIN_NAME:-}"
+SAVED_ADMIN_EMAIL="${ADMIN_EMAIL:-}"
+SAVED_ADMIN_PASSWORD="${ADMIN_PASSWORD:-}"
+
 # ─── Load .env files from backend/ ────────────────────────────────────────────
 [[ -f "${BACKEND_DIR}/.env" ]]             && source "${BACKEND_DIR}/.env"             2>/dev/null || true
 [[ -f "${BACKEND_DIR}/.env.development" ]] && source "${BACKEND_DIR}/.env.development" 2>/dev/null || true
+
+# ─── Restore command-line env vars (override .env values) ─────────────────────
+[[ -n "$SAVED_BASE_URL_LOCAL" ]]         && BASE_URL_LOCAL="$SAVED_BASE_URL_LOCAL"
+[[ -n "$SAVED_BOOTSTRAP_SECRET_LOCAL" ]] && BOOTSTRAP_SECRET_LOCAL="$SAVED_BOOTSTRAP_SECRET_LOCAL"
+[[ -n "$SAVED_ADMIN_BOOTSTRAP_SECRET" ]] && ADMIN_BOOTSTRAP_SECRET="$SAVED_ADMIN_BOOTSTRAP_SECRET"
+[[ -n "$SAVED_ADMIN_NAME" ]]             && ADMIN_NAME="$SAVED_ADMIN_NAME"
+[[ -n "$SAVED_ADMIN_EMAIL" ]]            && ADMIN_EMAIL="$SAVED_ADMIN_EMAIL"
+[[ -n "$SAVED_ADMIN_PASSWORD" ]]         && ADMIN_PASSWORD="$SAVED_ADMIN_PASSWORD"
 
 # ─── Defaults ─────────────────────────────────────────────────────────────────
 BASE_URL="${BASE_URL_LOCAL:-http://localhost:8000}"
@@ -115,7 +132,7 @@ cmd_create() {
       info    "  Email   : ${email}"
       info    "  User ID : ${uid}"
       info ""
-      info "You can now sign in at http://localhost:5173/admin/login"
+      info "You can now sign in at your frontend /admin/login page"
       ;;
     409) warn "An admin already exists. Use 'update' if you need to change credentials." ;;
     400) die "Validation error: $(echo "$body" | jq -r '.error // empty' || echo "$body")" ;;

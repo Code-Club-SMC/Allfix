@@ -164,7 +164,6 @@ func New(cfg *config.Config, pool *pgxpool.Pool, q *db.Queries) http.Handler {
 		r.Delete("/inventory/{id}", inventoryH.Delete)
 
 		// Data management
-		r.Post("/data/seed", dataH.SeedData)
 		r.Post("/data/clear", dataH.ClearData)
 	})
 
