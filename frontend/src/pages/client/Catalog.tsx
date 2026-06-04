@@ -1,19 +1,21 @@
-import { useNavigate } from "react-router-dom";
 import * as Icons from "lucide-react";
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { useServices } from "@/hooks/useServices";
-import { useState, useMemo } from "react";
 import { buildServiceSlugMap, cn } from "@/lib/utils";
 
 // ── Icon resolution ──────────────────────────────────────────────────────────
 // DB stores lowercase lucide names (zap, droplets, hammer…).
 // Some are aliases (grid→Grid3x3, settings→Settings2, square→Square).
 const NAME_TO_ICON: Record<string, keyof typeof Icons> = {
-  "electrician": "Zap",
-  "plumber": "Droplets",
-  "welder": "Flame",
-  "carpenter": "Hammer",
-  "sweeper": "Wind",
-  "painter": "Paintbrush",
+  electrician: "Zap",
+  plumber: "Droplets",
+  welder: "Flame",
+  carpenter: "Hammer",
+  sweeper: "Wind",
+  painter: "Paintbrush",
   "rock wall": "Layers",
   "texture & graphy": "Palette",
   "tile works": "Grid3X3",
@@ -22,22 +24,71 @@ const NAME_TO_ICON: Record<string, keyof typeof Icons> = {
   "sofa & carpet cleaning": "Sparkles",
 };
 
-const ACCENT_BY_NAME: Record<string, { bg: string; fg: string; ring: string }> = {
-  "electrician":         { bg: "bg-amber-50",   fg: "text-amber-700",   ring: "ring-amber-200/60" },
-  "plumber":             { bg: "bg-sky-50",     fg: "text-sky-700",     ring: "ring-sky-200/60" },
-  "welder":              { bg: "bg-orange-50",  fg: "text-orange-700",  ring: "ring-orange-200/60" },
-  "carpenter":           { bg: "bg-yellow-50",  fg: "text-yellow-800",  ring: "ring-yellow-200/60" },
-  "sweeper":             { bg: "bg-teal-50",    fg: "text-teal-700",    ring: "ring-teal-200/60" },
-  "painter":             { bg: "bg-violet-50",  fg: "text-violet-700",  ring: "ring-violet-200/60" },
-  "rock wall":           { bg: "bg-stone-100",  fg: "text-stone-700",   ring: "ring-stone-200/60" },
-  "texture & graphy":    { bg: "bg-pink-50",    fg: "text-pink-700",    ring: "ring-pink-200/60" },
-  "tile works":          { bg: "bg-cyan-50",    fg: "text-cyan-700",    ring: "ring-cyan-200/60" },
-  "ceiling works":       { bg: "bg-indigo-50",  fg: "text-indigo-700",  ring: "ring-indigo-200/60" },
-  "appliances repair":   { bg: "bg-emerald-50", fg: "text-emerald-700", ring: "ring-emerald-200/60" },
-  "sofa & carpet cleaning": { bg: "bg-rose-50", fg: "text-rose-700",    ring: "ring-rose-200/60" },
+const ACCENT_BY_NAME: Record<string, { bg: string; fg: string; ring: string }> =
+{
+  electrician: {
+    bg: "bg-amber-50",
+    fg: "text-amber-700",
+    ring: "ring-amber-200/60",
+  },
+  plumber: { bg: "bg-sky-50", fg: "text-sky-700", ring: "ring-sky-200/60" },
+  welder: {
+    bg: "bg-orange-50",
+    fg: "text-orange-700",
+    ring: "ring-orange-200/60",
+  },
+  carpenter: {
+    bg: "bg-yellow-50",
+    fg: "text-yellow-800",
+    ring: "ring-yellow-200/60",
+  },
+  sweeper: {
+    bg: "bg-teal-50",
+    fg: "text-teal-700",
+    ring: "ring-teal-200/60",
+  },
+  painter: {
+    bg: "bg-violet-50",
+    fg: "text-violet-700",
+    ring: "ring-violet-200/60",
+  },
+  "rock wall": {
+    bg: "bg-stone-100",
+    fg: "text-stone-700",
+    ring: "ring-stone-200/60",
+  },
+  "texture & graphy": {
+    bg: "bg-pink-50",
+    fg: "text-pink-700",
+    ring: "ring-pink-200/60",
+  },
+  "tile works": {
+    bg: "bg-cyan-50",
+    fg: "text-cyan-700",
+    ring: "ring-cyan-200/60",
+  },
+  "ceiling works": {
+    bg: "bg-indigo-50",
+    fg: "text-indigo-700",
+    ring: "ring-indigo-200/60",
+  },
+  "appliances repair": {
+    bg: "bg-emerald-50",
+    fg: "text-emerald-700",
+    ring: "ring-emerald-200/60",
+  },
+  "sofa & carpet cleaning": {
+    bg: "bg-rose-50",
+    fg: "text-rose-700",
+    ring: "ring-rose-200/60",
+  },
 };
 
-const FALLBACK_ACCENT = { bg: "bg-subtle", fg: "text-muted-foreground", ring: "ring-border/40" };
+const FALLBACK_ACCENT = {
+  bg: "bg-subtle",
+  fg: "text-muted-foreground",
+  ring: "ring-border/40",
+};
 
 function getIcon(name: string): Icons.LucideIcon {
   const key = name.toLowerCase().trim();
@@ -63,12 +114,20 @@ interface ServiceItem {
 }
 
 const Catalog = () => {
-  const { data: services, isLoading, isError } = useServices();
+  const {
+    data: services,
+    isLoading,
+    isError,
+    refetch,
+    isFetching,
+  } = useServices();
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const navigate = useNavigate();
 
-  const selectedIds = Object.entries(selected).filter(([, v]) => v).map(([k]) => k);
+  const selectedIds = Object.entries(selected)
+    .filter(([, v]) => v)
+    .map(([k]) => k);
   const { slugById } = buildServiceSlugMap(services ?? []);
   const selectedSlugs = selectedIds
     .map((id) => slugById[id])
@@ -80,7 +139,9 @@ const Catalog = () => {
 
   const handleProceed = () => {
     if (!canProceed) return;
-    navigate(`/book?services=${selectedSlugs.map(encodeURIComponent).join(",")}`);
+    navigate(
+      `/book?services=${selectedSlugs.map(encodeURIComponent).join(",")}`,
+    );
   };
 
   const groupedServices = useMemo(() => {
@@ -97,7 +158,12 @@ const Catalog = () => {
     );
     if (orphanedSubs.length > 0) {
       groups.push({
-        category: { id: "orphaned", name: "Other Services", description: "", icon: "wrench" },
+        category: {
+          id: "orphaned",
+          name: "Other Services",
+          description: "",
+          icon: "wrench",
+        },
         subs: orphanedSubs,
       });
     }
@@ -121,7 +187,9 @@ const Catalog = () => {
           role="button"
           tabIndex={0}
           onClick={() => toggleService(s.id)}
-          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") toggleService(s.id); }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") toggleService(s.id);
+          }}
           className={cn(
             "relative flex items-center gap-5 overflow-hidden rounded-xl border bg-surface transition-all duration-300 cursor-pointer select-none",
             "hover:-translate-y-[3px]",
@@ -131,19 +199,25 @@ const Catalog = () => {
           )}
         >
           {/* Left accent stripe */}
-          <div className={cn(
-            "absolute left-0 top-0 bottom-0 w-[3px] transition-all duration-300",
-            accent.fg.replace("text-", "bg-"),
-            isSel ? "opacity-100" : "opacity-0 group-hover/card:opacity-60",
-          )} />
+          <div
+            className={cn(
+              "absolute left-0 top-0 bottom-0 w-[3px] transition-all duration-300",
+              accent.fg.replace("text-", "bg-"),
+              isSel ? "opacity-100" : "opacity-0 group-hover/card:opacity-60",
+            )}
+          />
 
           {/* Icon badge — larger, more saturated */}
-          <div className={cn(
-            "flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-[14px] ring-1 transition-all duration-300 ml-4",
-            "group-hover/card:scale-[1.08]",
-            accent.bg, accent.fg, accent.ring,
-            isSel && "scale-[1.08]",
-          )}>
+          <div
+            className={cn(
+              "flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-[14px] ring-1 transition-all duration-300 ml-4",
+              "group-hover/card:scale-[1.08]",
+              accent.bg,
+              accent.fg,
+              accent.ring,
+              isSel && "scale-[1.08]",
+            )}
+          >
             <Icon className="h-[26px] w-[26px]" strokeWidth={1.4} />
           </div>
 
@@ -154,12 +228,14 @@ const Catalog = () => {
                 {s.name}
               </span>
               {/* Inline checkbox indicator */}
-              <div className={cn(
-                "flex h-5 w-5 items-center justify-center rounded-[5px] border-[1.5px] transition-all duration-200",
-                isSel
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border/70 bg-surface",
-              )}>
+              <div
+                className={cn(
+                  "flex h-5 w-5 items-center justify-center rounded-[5px] border-[1.5px] transition-all duration-200",
+                  isSel
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border/70 bg-surface",
+                )}
+              >
                 {isSel && <Icons.Check className="h-3 w-3" strokeWidth={3} />}
               </div>
             </div>
@@ -178,9 +254,12 @@ const Catalog = () => {
       {/* ═══ Hero ═══ */}
       <section className="relative overflow-hidden bg-[hsl(24,35%,11%)] px-5 py-20 md:py-28 md:px-8">
         {/* Cross-hatch texture */}
-        <div className="pointer-events-none absolute inset-0 opacity-[0.03]" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23fff' fill-opacity='1' fill-rule='evenodd'%3E%3Cpath d='M0 20L20 0h1v1L1 21v-1zM20 40L40 20h1v1L21 41v-1z'/%3E%3C/g%3E%3C/svg%3E")`,
-        }} />
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23fff' fill-opacity='1' fill-rule='evenodd'%3E%3Cpath d='M0 20L20 0h1v1L1 21v-1zM20 40L40 20h1v1L21 41v-1z'/%3E%3C/g%3E%3C/svg%3E")`,
+          }}
+        />
         {/* Warm radial glow */}
         <div className="pointer-events-none absolute -top-32 left-1/2 h-[500px] w-[500px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,hsl(26,38%,28%,0.3)_0%,transparent_65%)]" />
         <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
@@ -198,13 +277,14 @@ const Catalog = () => {
           </div>
 
           <h1 className="mt-8 font-display text-[clamp(36px,6vw,56px)] leading-[1.08] text-white">
-            Home services,<br />
+            Home services,
+            <br />
             <span className="text-[hsl(36,55%,62%)]">done right.</span>
           </h1>
 
           <p className="mx-auto mt-5 max-w-[400px] text-[14px] leading-[1.65] text-white/40">
-            Book vetted craftsmen for any job.
-            Select a service, fill the details, and we handle the rest.
+            Book vetted craftsmen for any job. Select a service, fill the
+            details, and we handle the rest.
           </p>
 
           <a
@@ -218,7 +298,10 @@ const Catalog = () => {
       </section>
 
       {/* ═══ Service grid ═══ */}
-      <section id="services" className="mx-auto max-w-[1120px] px-5 pb-20 pt-14 md:px-8">
+      <section
+        id="services"
+        className="mx-auto max-w-[1120px] px-5 pb-20 pt-14 md:px-8"
+      >
         <div className="mb-8">
           <h2 className="font-display text-[28px] tracking-[-0.02em] text-foreground">
             Choose a service
@@ -231,7 +314,12 @@ const Catalog = () => {
         {/* Category tabs */}
         {!isLoading && !isError && groupedServices.length > 1 && (
           <div className="mb-8 flex flex-wrap gap-1.5">
-            {[{ id: "all", name: "All" }, ...groupedServices.filter(g => g.category.id !== "orphaned").map(g => g.category)].map((cat) => (
+            {[
+              { id: "all", name: "All" },
+              ...groupedServices
+                .filter((g) => g.category.id !== "orphaned")
+                .map((g) => g.category),
+            ].map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
@@ -251,12 +339,35 @@ const Catalog = () => {
         {isLoading ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-20 animate-pulse rounded-xl bg-subtle/50" />
+              <div
+                key={i}
+                className="h-20 animate-pulse rounded-xl bg-subtle/50"
+              />
             ))}
           </div>
         ) : isError ? (
-          <div className="rounded-xl border border-danger/20 bg-danger/[0.03] p-8 text-center text-[14px] text-danger">
-            Failed to load services. Please try again.
+          <div className="rounded-xl border border-danger/20 bg-danger/[0.03] p-8 text-center text-[14px] text-danger flex flex-col items-center justify-center gap-4">
+            <span>Failed to load services. Please try again.</span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="border-danger/30 text-danger hover:bg-danger/[0.05] hover:text-danger flex items-center gap-2"
+            >
+              {isFetching ? (
+                <>
+                  <Spinner className="h-4 w-4 animate-spin" />
+                  Retrying...
+                </>
+              ) : (
+                <>
+                  <Icons.RotateCw className="h-3.5 w-3.5" />
+                  Try Again
+                </>
+              )}
+            </Button>
           </div>
         ) : (
           <div className="space-y-12">
@@ -268,7 +379,10 @@ const Catalog = () => {
                     const CatIcon = getIcon(group.category.name);
                     return (
                       <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-subtle ring-1 ring-border/30">
-                        <CatIcon className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.75} />
+                        <CatIcon
+                          className="h-3.5 w-3.5 text-muted-foreground"
+                          strokeWidth={1.75}
+                        />
                       </div>
                     );
                   })()}
@@ -284,8 +398,8 @@ const Catalog = () => {
                 </div>
                 {/* Cards */}
                 <div className="stagger-cards grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {(group.subs.length > 0 ? group.subs : [group.category]).map((s) =>
-                    renderCard(s),
+                  {(group.subs.length > 0 ? group.subs : [group.category]).map(
+                    (s) => renderCard(s),
                   )}
                 </div>
               </div>
@@ -302,17 +416,44 @@ const Catalog = () => {
           </h2>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
             {[
-              { icon: Icons.LayoutGrid, n: "01", t: "Pick a service", d: "Browse our catalogue of vetted trades. Select one or more." },
-              { icon: Icons.ClipboardList, n: "02", t: "Describe the job", d: "What needs to be done — date, time, and your address." },
-              { icon: Icons.CheckCircle2, n: "03", t: "We take it from here", d: "A coordinator assigns the right worker and confirms your booking." },
+              {
+                icon: Icons.LayoutGrid,
+                n: "01",
+                t: "Pick a service",
+                d: "Browse our catalogue of vetted trades. Select one or more.",
+              },
+              {
+                icon: Icons.ClipboardList,
+                n: "02",
+                t: "Describe the job",
+                d: "What needs to be done — date, time, and your address.",
+              },
+              {
+                icon: Icons.CheckCircle2,
+                n: "03",
+                t: "We take it from here",
+                d: "A coordinator assigns the right worker and confirms your booking.",
+              },
             ].map(({ icon: Icon, n, t, d }) => (
-              <div key={n} className="relative rounded-xl border border-border/30 bg-surface/80 px-6 py-7">
-                <span className="font-display text-[44px] leading-none text-primary/[0.07]">{n}</span>
+              <div
+                key={n}
+                className="relative rounded-xl border border-border/30 bg-surface/80 px-6 py-7"
+              >
+                <span className="font-display text-[44px] leading-none text-primary/[0.07]">
+                  {n}
+                </span>
                 <div className="mt-4 flex h-9 w-9 items-center justify-center rounded-lg bg-subtle ring-1 ring-border/20">
-                  <Icon className="h-[18px] w-[18px] text-primary" strokeWidth={1.5} />
+                  <Icon
+                    className="h-[18px] w-[18px] text-primary"
+                    strokeWidth={1.5}
+                  />
                 </div>
-                <div className="mt-3 text-[14px] font-semibold text-foreground">{t}</div>
-                <div className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">{d}</div>
+                <div className="mt-3 text-[14px] font-semibold text-foreground">
+                  {t}
+                </div>
+                <div className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
+                  {d}
+                </div>
               </div>
             ))}
           </div>
@@ -330,7 +471,9 @@ const Catalog = () => {
           ].map((label) => (
             <div key={label} className="flex items-center gap-2.5">
               <div className="h-1.5 w-1.5 rounded-full bg-primary/25" />
-              <span className="text-[12px] font-medium text-muted-foreground">{label}</span>
+              <span className="text-[12px] font-medium text-muted-foreground">
+                {label}
+              </span>
             </div>
           ))}
         </div>
@@ -338,10 +481,13 @@ const Catalog = () => {
 
       {/* ═══ Sticky cart ═══ */}
       <div className="fixed bottom-5 left-1/2 z-50 w-full max-w-[540px] -translate-x-1/2 px-4">
-        <div className={cn(
-          "mx-auto flex items-center justify-between gap-4 rounded-xl border border-border/60 bg-surface/95 px-4 py-3 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300",
-          selectedIds.length === 0 && "translate-y-3 opacity-0 pointer-events-none",
-        )}>
+        <div
+          className={cn(
+            "mx-auto flex items-center justify-between gap-4 rounded-xl border border-border/60 bg-surface/95 px-4 py-3 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300",
+            selectedIds.length === 0 &&
+            "translate-y-3 opacity-0 pointer-events-none",
+          )}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
               {selectedIds.length}
