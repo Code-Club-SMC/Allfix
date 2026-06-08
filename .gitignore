@@ -30,3 +30,8 @@ graphify-out
 
 # Ignore local seed output
 backend/seed/
+
+# Env files
+.env
+.env.*
+!.env.example
