@@ -18,6 +18,11 @@ export default defineConfig(({ mode }) => ({
 				target: "http://localhost:8000",
 				changeOrigin: true,
 			},
+			// Proxy uploaded files
+			"/uploads": {
+				target: "http://localhost:8000",
+				changeOrigin: true,
+			},
 		},
 	},
 	plugins: [

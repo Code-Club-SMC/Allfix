@@ -36,11 +36,7 @@ const Login = () => {
 		<div className="flex min-h-screen items-center justify-center bg-background px-4">
 			<div className="w-full max-w-[380px]">
 				<div className="mb-8 flex flex-col items-center gap-2">
-					<div className="flex h-10 w-10 items-center justify-center bg-primary">
-						<span className="font-sans text-[18px] font-normal text-primary-foreground">
-							C
-						</span>
-					</div>
+					<img src="/allfix-logo.jpeg" alt="Allfix" className="h-12 w-12 rounded-lg object-cover shadow-sm" />
 					<h1 className="font-sans text-[20px] font-normal tracking-[-0.2px] text-foreground">
 						Allfix Admin
 					</h1>

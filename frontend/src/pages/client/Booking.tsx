@@ -84,19 +84,40 @@ const Booking = () => {
 	const { data: services, isLoading: isLoadingServices } = useServices();
 	const search = new URLSearchParams(location.search);
 	const servicesParam = search.get("services");
-	const rawSlugs = servicesParam
-		? servicesParam.split(",")
-		: serviceSlug
-			? [serviceSlug]
-			: [];
-	const selectedSlugs = rawSlugs
-		.map((slug) => decodeURIComponent(slug).trim())
-		.filter(Boolean);
-	const { serviceBySlug } = buildServiceSlugMap(services ?? []);
-	const selectedServices = selectedSlugs
-		.map((slug) => serviceBySlug[slug])
-		.filter((service): service is NonNullable<typeof service> => !!service);
-	const invalidSlugs = selectedSlugs.filter((slug) => !serviceBySlug[slug]);
+	const serviceIdsParam = search.get("serviceIds");
+
+	// Build a lookup map from services
+	const serviceById: Record<string, typeof services[0]> = {};
+	if (services) {
+		for (const s of services) {
+			serviceById[s.id] = s;
+		}
+	}
+
+	let selectedServices: typeof services = [];
+	let invalidSlugs: string[] = [];
+	let selectedSlugs: string[] = [];
+
+	if (serviceIdsParam) {
+		// Direct UUID matching (from cart checkout)
+		const rawIds = serviceIdsParam.split(",").map((id) => id.trim()).filter(Boolean);
+		selectedServices = rawIds.map((id) => serviceById[id]).filter(Boolean) as typeof services;
+	} else {
+		const rawSlugs = servicesParam
+			? servicesParam.split(",")
+			: serviceSlug
+				? [serviceSlug]
+				: [];
+		selectedSlugs = rawSlugs
+			.map((slug) => decodeURIComponent(slug).trim())
+			.filter(Boolean);
+		const { serviceBySlug } = buildServiceSlugMap(services ?? []);
+		selectedServices = selectedSlugs
+			.map((slug) => serviceBySlug[slug])
+			.filter((service): service is NonNullable<typeof service> => !!service);
+		invalidSlugs = selectedSlugs.filter((slug) => !serviceBySlug[slug]);
+	}
+
 	const selectedNames = selectedServices.map((service) => service.name);
 	const canSubmit = selectedServices.length > 0 && invalidSlugs.length === 0;
 
@@ -204,7 +225,7 @@ const Booking = () => {
 
 	return (
 		<div className="mx-auto max-w-[720px] px-5 py-10 md:py-14">
-			{(invalidSlugs.length > 0 || selectedSlugs.length === 0) && (
+			{(invalidSlugs.length > 0 || selectedServices.length === 0) && (
 				<div className="mb-6 rounded-xl border border-danger/20 bg-danger/[0.03] p-5 text-[13px] text-danger">
 					<div className="font-semibold">We couldn't find those services.</div>
 					{invalidSlugs.length > 0 ? (

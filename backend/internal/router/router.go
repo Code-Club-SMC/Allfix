@@ -2,6 +2,8 @@ package router
 
 import (
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
@@ -43,9 +45,15 @@ func New(cfg *config.Config, pool *pgxpool.Pool, q *db.Queries) http.Handler {
 	vendorH := handler.NewAdminVendorsHandler(q)
 	accountH := handler.NewSystemAccountHandler(q)
 	dataH := handler.NewAdminDataHandler(pool, q)
+	uploadH := handler.NewUploadHandler(filepath.Join(".", "uploads"), q)
 
 	requireAuth := mw.RequireAuth(cfg.JWTSecret)
 	requireAdmin := mw.RequireRole("admin")
+
+	// ─ Serve uploaded files ───────────────────────────────────────────────────
+	uploadDir := filepath.Join(".", "uploads")
+	os.MkdirAll(uploadDir, 0755)
+	r.Handle("/uploads/*", http.StripPrefix("/uploads/", http.FileServer(http.Dir(uploadDir))))
 
 	// ── Internal bootstrap ─────────────────────────────────────────────────────
 	r.Route("/api/internal", func(r chi.Router) {
@@ -64,6 +72,8 @@ func New(cfg *config.Config, pool *pgxpool.Pool, q *db.Queries) http.Handler {
 
 	// ── Public ─────────────────────────────────────────────────────────────────
 	r.Get("/api/services", svcH.List)
+	r.Get("/api/services/categories", svcH.ListCategories)
+	r.Get("/api/services/category/{id}", svcH.GetCategory)
 
 	// ── Client ─────────────────────────────────────────────────────────────────
 	r.Route("/api/requests", func(r chi.Router) {
@@ -72,12 +82,15 @@ func New(cfg *config.Config, pool *pgxpool.Pool, q *db.Queries) http.Handler {
 		r.With(requireAuth, mw.RequireRole("client")).Get("/{id}", clientReqH.Get)
 	})
 
-	// ── Admin ──────────────────────────────────────────────────────────────────
+	// ── Admin ─────────────────────────────────────────────────────────────────
 	r.Route("/api/admin", func(r chi.Router) {
 		r.Use(requireAuth)
 		r.Use(requireAdmin)
 
 		r.Get("/dashboard", dashH.Get)
+
+		// Upload
+		r.Post("/upload", uploadH.Upload)
 
 		// Services
 		r.Post("/services", adminSvcH.Create)
@@ -85,6 +98,8 @@ func New(cfg *config.Config, pool *pgxpool.Pool, q *db.Queries) http.Handler {
 		r.Delete("/services/{id}", adminSvcH.Delete)
 		r.Get("/services/hierarchical", adminSvcH.ListHierarchical)
 		r.Get("/services/categories", adminSvcH.ListCategories)
+		r.Get("/services/categories-with-counts", adminSvcH.ListCategoriesWithCounts)
+		r.Get("/services/category/{id}", adminSvcH.GetCategoryWithServices)
 
 		// Requests
 		r.Get("/requests", adminReqH.List)

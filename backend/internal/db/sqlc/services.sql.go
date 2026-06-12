@@ -25,17 +25,20 @@ func (q *Queries) CountSubCategories(ctx context.Context, parentID pgtype.UUID) 
 }
 
 const createService = `-- name: CreateService :one
-INSERT INTO services (name, description, icon, parent_id, is_subcategory)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, name, description, icon, created_at, parent_id, is_subcategory
+INSERT INTO services (name, description, icon, parent_id, is_subcategory, image_url, price, discount_percentage)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, name, description, icon, created_at, parent_id, is_subcategory, image_url, price, discount_percentage, rating, review_count
 `
 
 type CreateServiceParams struct {
-	Name          string      `db:"name" json:"name"`
-	Description   string      `db:"description" json:"description"`
-	Icon          string      `db:"icon" json:"icon"`
-	ParentID      pgtype.UUID `db:"parent_id" json:"parent_id"`
-	IsSubcategory bool        `db:"is_subcategory" json:"is_subcategory"`
+	Name                string         `db:"name" json:"name"`
+	Description         string         `db:"description" json:"description"`
+	Icon                string         `db:"icon" json:"icon"`
+	ParentID            pgtype.UUID    `db:"parent_id" json:"parent_id"`
+	IsSubcategory       bool           `db:"is_subcategory" json:"is_subcategory"`
+	ImageUrl            *string        `db:"image_url" json:"image_url"`
+	Price               pgtype.Numeric `db:"price" json:"price"`
+	DiscountPercentage  int32          `db:"discount_percentage" json:"discount_percentage"`
 }
 
 func (q *Queries) CreateService(ctx context.Context, arg CreateServiceParams) (Service, error) {
@@ -45,6 +48,9 @@ func (q *Queries) CreateService(ctx context.Context, arg CreateServiceParams) (S
 		arg.Icon,
 		arg.ParentID,
 		arg.IsSubcategory,
+		arg.ImageUrl,
+		arg.Price,
+		arg.DiscountPercentage,
 	)
 	var i Service
 	err := row.Scan(
@@ -55,6 +61,11 @@ func (q *Queries) CreateService(ctx context.Context, arg CreateServiceParams) (S
 		&i.CreatedAt,
 		&i.ParentID,
 		&i.IsSubcategory,
+		&i.ImageUrl,
+		&i.Price,
+		&i.DiscountPercentage,
+		&i.Rating,
+		&i.ReviewCount,
 	)
 	return i, err
 }
@@ -69,7 +80,7 @@ func (q *Queries) DeleteService(ctx context.Context, id uuid.UUID) error {
 }
 
 const getServiceByID = `-- name: GetServiceByID :one
-SELECT id, name, description, icon, created_at, parent_id, is_subcategory FROM services WHERE id = $1
+SELECT id, name, description, icon, created_at, parent_id, is_subcategory, image_url, price, discount_percentage, rating, review_count FROM services WHERE id = $1
 `
 
 func (q *Queries) GetServiceByID(ctx context.Context, id uuid.UUID) (Service, error) {
@@ -83,6 +94,11 @@ func (q *Queries) GetServiceByID(ctx context.Context, id uuid.UUID) (Service, er
 		&i.CreatedAt,
 		&i.ParentID,
 		&i.IsSubcategory,
+		&i.ImageUrl,
+		&i.Price,
+		&i.DiscountPercentage,
+		&i.Rating,
+		&i.ReviewCount,
 	)
 	return i, err
 }
@@ -90,6 +106,7 @@ func (q *Queries) GetServiceByID(ctx context.Context, id uuid.UUID) (Service, er
 const listAllServicesWithParent = `-- name: ListAllServicesWithParent :many
 SELECT
     s.id, s.name, s.description, s.icon, s.created_at, s.parent_id, s.is_subcategory,
+    s.image_url, s.price, s.discount_percentage, s.rating, s.review_count,
     p.name as parent_name
 FROM services s
 LEFT JOIN services p ON s.parent_id = p.id
@@ -97,14 +114,19 @@ ORDER BY COALESCE(p.name, s.name), s.name
 `
 
 type ListAllServicesWithParentRow struct {
-	ID            uuid.UUID   `db:"id" json:"id"`
-	Name          string      `db:"name" json:"name"`
-	Description   string      `db:"description" json:"description"`
-	Icon          string      `db:"icon" json:"icon"`
-	CreatedAt     time.Time   `db:"created_at" json:"created_at"`
-	ParentID      pgtype.UUID `db:"parent_id" json:"parent_id"`
-	IsSubcategory bool        `db:"is_subcategory" json:"is_subcategory"`
-	ParentName    *string     `db:"parent_name" json:"parent_name"`
+	ID                  uuid.UUID      `db:"id" json:"id"`
+	Name                string         `db:"name" json:"name"`
+	Description         string         `db:"description" json:"description"`
+	Icon                string         `db:"icon" json:"icon"`
+	CreatedAt           time.Time      `db:"created_at" json:"created_at"`
+	ParentID            pgtype.UUID    `db:"parent_id" json:"parent_id"`
+	IsSubcategory       bool           `db:"is_subcategory" json:"is_subcategory"`
+	ImageUrl            *string        `db:"image_url" json:"image_url"`
+	Price               pgtype.Numeric `db:"price" json:"price"`
+	DiscountPercentage  int32          `db:"discount_percentage" json:"discount_percentage"`
+	Rating              pgtype.Numeric `db:"rating" json:"rating"`
+	ReviewCount         int32          `db:"review_count" json:"review_count"`
+	ParentName          *string        `db:"parent_name" json:"parent_name"`
 }
 
 func (q *Queries) ListAllServicesWithParent(ctx context.Context) ([]ListAllServicesWithParentRow, error) {
@@ -124,6 +146,11 @@ func (q *Queries) ListAllServicesWithParent(ctx context.Context) ([]ListAllServi
 			&i.CreatedAt,
 			&i.ParentID,
 			&i.IsSubcategory,
+			&i.ImageUrl,
+			&i.Price,
+			&i.DiscountPercentage,
+			&i.Rating,
+			&i.ReviewCount,
 			&i.ParentName,
 		); err != nil {
 			return nil, err
@@ -137,7 +164,7 @@ func (q *Queries) ListAllServicesWithParent(ctx context.Context) ([]ListAllServi
 }
 
 const listServiceCategories = `-- name: ListServiceCategories :many
-SELECT id, name, description, icon, created_at, parent_id, is_subcategory FROM services WHERE parent_id IS NULL ORDER BY name ASC
+SELECT id, name, description, icon, created_at, parent_id, is_subcategory, image_url, price, discount_percentage, rating, review_count FROM services WHERE parent_id IS NULL ORDER BY name ASC
 `
 
 func (q *Queries) ListServiceCategories(ctx context.Context) ([]Service, error) {
@@ -157,6 +184,11 @@ func (q *Queries) ListServiceCategories(ctx context.Context) ([]Service, error) 
 			&i.CreatedAt,
 			&i.ParentID,
 			&i.IsSubcategory,
+			&i.ImageUrl,
+			&i.Price,
+			&i.DiscountPercentage,
+			&i.Rating,
+			&i.ReviewCount,
 		); err != nil {
 			return nil, err
 		}
@@ -169,7 +201,7 @@ func (q *Queries) ListServiceCategories(ctx context.Context) ([]Service, error) 
 }
 
 const listServices = `-- name: ListServices :many
-SELECT id, name, description, icon, created_at, parent_id, is_subcategory FROM services ORDER BY name ASC
+SELECT id, name, description, icon, created_at, parent_id, is_subcategory, image_url, price, discount_percentage, rating, review_count FROM services ORDER BY name ASC
 `
 
 func (q *Queries) ListServices(ctx context.Context) ([]Service, error) {
@@ -189,6 +221,11 @@ func (q *Queries) ListServices(ctx context.Context) ([]Service, error) {
 			&i.CreatedAt,
 			&i.ParentID,
 			&i.IsSubcategory,
+			&i.ImageUrl,
+			&i.Price,
+			&i.DiscountPercentage,
+			&i.Rating,
+			&i.ReviewCount,
 		); err != nil {
 			return nil, err
 		}
@@ -201,7 +238,7 @@ func (q *Queries) ListServices(ctx context.Context) ([]Service, error) {
 }
 
 const listSubCategories = `-- name: ListSubCategories :many
-SELECT id, name, description, icon, created_at, parent_id, is_subcategory FROM services WHERE parent_id = $1 ORDER BY name ASC
+SELECT id, name, description, icon, created_at, parent_id, is_subcategory, image_url, price, discount_percentage, rating, review_count FROM services WHERE parent_id = $1 ORDER BY name ASC
 `
 
 func (q *Queries) ListSubCategories(ctx context.Context, parentID pgtype.UUID) ([]Service, error) {
@@ -221,6 +258,11 @@ func (q *Queries) ListSubCategories(ctx context.Context, parentID pgtype.UUID) (
 			&i.CreatedAt,
 			&i.ParentID,
 			&i.IsSubcategory,
+			&i.ImageUrl,
+			&i.Price,
+			&i.DiscountPercentage,
+			&i.Rating,
+			&i.ReviewCount,
 		); err != nil {
 			return nil, err
 		}
@@ -239,18 +281,28 @@ SET
     description    = COALESCE($3, description),
     icon           = COALESCE($4, icon),
     parent_id      = COALESCE($5, parent_id),
-    is_subcategory = COALESCE($6, is_subcategory)
+    is_subcategory = COALESCE($6, is_subcategory),
+    image_url      = COALESCE($7, image_url),
+    price          = COALESCE($8, price),
+    discount_percentage = COALESCE($9, discount_percentage),
+    rating         = COALESCE($10, rating),
+    review_count   = COALESCE($11, review_count)
 WHERE id = $1
-RETURNING id, name, description, icon, created_at, parent_id, is_subcategory
+RETURNING id, name, description, icon, created_at, parent_id, is_subcategory, image_url, price, discount_percentage, rating, review_count
 `
 
 type UpdateServiceParams struct {
-	ID            uuid.UUID   `db:"id" json:"id"`
-	Name          *string     `db:"name" json:"name"`
-	Description   *string     `db:"description" json:"description"`
-	Icon          *string     `db:"icon" json:"icon"`
-	ParentID      pgtype.UUID `db:"parent_id" json:"parent_id"`
-	IsSubcategory *bool       `db:"is_subcategory" json:"is_subcategory"`
+	ID                  uuid.UUID      `db:"id" json:"id"`
+	Name                *string        `db:"name" json:"name"`
+	Description         *string        `db:"description" json:"description"`
+	Icon                *string        `db:"icon" json:"icon"`
+	ParentID            pgtype.UUID    `db:"parent_id" json:"parent_id"`
+	IsSubcategory       *bool          `db:"is_subcategory" json:"is_subcategory"`
+	ImageUrl            *string        `db:"image_url" json:"image_url"`
+	Price               pgtype.Numeric `db:"price" json:"price"`
+	DiscountPercentage  *int32         `db:"discount_percentage" json:"discount_percentage"`
+	Rating              pgtype.Numeric `db:"rating" json:"rating"`
+	ReviewCount         *int32         `db:"review_count" json:"review_count"`
 }
 
 func (q *Queries) UpdateService(ctx context.Context, arg UpdateServiceParams) (Service, error) {
@@ -261,6 +313,11 @@ func (q *Queries) UpdateService(ctx context.Context, arg UpdateServiceParams) (S
 		arg.Icon,
 		arg.ParentID,
 		arg.IsSubcategory,
+		arg.ImageUrl,
+		arg.Price,
+		arg.DiscountPercentage,
+		arg.Rating,
+		arg.ReviewCount,
 	)
 	var i Service
 	err := row.Scan(
@@ -271,6 +328,243 @@ func (q *Queries) UpdateService(ctx context.Context, arg UpdateServiceParams) (S
 		&i.CreatedAt,
 		&i.ParentID,
 		&i.IsSubcategory,
+		&i.ImageUrl,
+		&i.Price,
+		&i.DiscountPercentage,
+		&i.Rating,
+		&i.ReviewCount,
 	)
 	return i, err
+}
+
+const updateServicePricing = `-- name: UpdateServicePricing :one
+UPDATE services
+SET
+    price                = COALESCE($2, price),
+    discount_percentage  = COALESCE($3, discount_percentage),
+    image_url            = COALESCE($4, image_url),
+    rating               = COALESCE($5, rating),
+    review_count         = COALESCE($6, review_count)
+WHERE id = $1
+RETURNING id, name, description, icon, created_at, parent_id, is_subcategory, image_url, price, discount_percentage, rating, review_count
+`
+
+type UpdateServicePricingParams struct {
+	ID                  uuid.UUID      `db:"id" json:"id"`
+	Price               pgtype.Numeric `db:"price" json:"price"`
+	DiscountPercentage  *int32         `db:"discount_percentage" json:"discount_percentage"`
+	ImageUrl            *string        `db:"image_url" json:"image_url"`
+	Rating              pgtype.Numeric `db:"rating" json:"rating"`
+	ReviewCount         *int32         `db:"review_count" json:"review_count"`
+}
+
+func (q *Queries) UpdateServicePricing(ctx context.Context, arg UpdateServicePricingParams) (Service, error) {
+	row := q.db.QueryRow(ctx, updateServicePricing,
+		arg.ID,
+		arg.Price,
+		arg.DiscountPercentage,
+		arg.ImageUrl,
+		arg.Rating,
+		arg.ReviewCount,
+	)
+	var i Service
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.Icon,
+		&i.CreatedAt,
+		&i.ParentID,
+		&i.IsSubcategory,
+		&i.ImageUrl,
+		&i.Price,
+		&i.DiscountPercentage,
+		&i.Rating,
+		&i.ReviewCount,
+	)
+	return i, err
+}
+
+const listServicesByCategory = `-- name: ListServicesByCategory :many
+SELECT id, name, description, icon, created_at, parent_id, is_subcategory, image_url, price, discount_percentage, rating, review_count FROM services WHERE parent_id = $1 ORDER BY name ASC
+`
+
+func (q *Queries) ListServicesByCategory(ctx context.Context, parentID pgtype.UUID) ([]Service, error) {
+	rows, err := q.db.Query(ctx, listServicesByCategory, parentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Service{}
+	for rows.Next() {
+		var i Service
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.Icon,
+			&i.CreatedAt,
+			&i.ParentID,
+			&i.IsSubcategory,
+			&i.ImageUrl,
+			&i.Price,
+			&i.DiscountPercentage,
+			&i.Rating,
+			&i.ReviewCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getCategoryWithCount = `-- name: GetCategoryWithCount :one
+SELECT
+    s.id, s.name, s.description, s.icon, s.created_at, s.parent_id, s.is_subcategory,
+    s.image_url, s.price, s.discount_percentage, s.rating, s.review_count,
+    (SELECT COUNT(*) FROM services WHERE parent_id = s.id) as sub_service_count
+FROM services s WHERE s.id = $1 AND s.parent_id IS NULL
+`
+
+func (q *Queries) GetCategoryWithCount(ctx context.Context, id uuid.UUID) (CategoryWithCount, error) {
+	row := q.db.QueryRow(ctx, getCategoryWithCount, id)
+	var i CategoryWithCount
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.Icon,
+		&i.CreatedAt,
+		&i.ParentID,
+		&i.IsSubcategory,
+		&i.ImageUrl,
+		&i.Price,
+		&i.DiscountPercentage,
+		&i.Rating,
+		&i.ReviewCount,
+		&i.SubServiceCount,
+	)
+	return i, err
+}
+
+const listCategoriesWithCounts = `-- name: ListCategoriesWithCounts :many
+SELECT
+    s.id, s.name, s.description, s.icon, s.created_at, s.parent_id, s.is_subcategory,
+    s.image_url, s.price, s.discount_percentage, s.rating, s.review_count,
+    (SELECT COUNT(*) FROM services WHERE parent_id = s.id) as sub_service_count
+FROM services s WHERE s.parent_id IS NULL ORDER BY s.name ASC
+`
+
+func (q *Queries) ListCategoriesWithCounts(ctx context.Context) ([]CategoryWithCount, error) {
+	rows, err := q.db.Query(ctx, listCategoriesWithCounts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CategoryWithCount{}
+	for rows.Next() {
+		var i CategoryWithCount
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.Icon,
+			&i.CreatedAt,
+			&i.ParentID,
+			&i.IsSubcategory,
+			&i.ImageUrl,
+			&i.Price,
+			&i.DiscountPercentage,
+			&i.Rating,
+			&i.ReviewCount,
+			&i.SubServiceCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const createUploadedFile = `-- name: CreateUploadedFile :one
+INSERT INTO uploaded_files (file_path, file_name, mime_type, size_bytes, uploaded_by)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, file_path, file_name, mime_type, size_bytes, uploaded_by, created_at
+`
+
+type CreateUploadedFileParams struct {
+	FilePath   string      `db:"file_path" json:"file_path"`
+	FileName   string      `db:"file_name" json:"file_name"`
+	MimeType   string      `db:"mime_type" json:"mime_type"`
+	SizeBytes  int64       `db:"size_bytes" json:"size_bytes"`
+	UploadedBy pgtype.UUID `db:"uploaded_by" json:"uploaded_by"`
+}
+
+func (q *Queries) CreateUploadedFile(ctx context.Context, arg CreateUploadedFileParams) (UploadedFile, error) {
+	row := q.db.QueryRow(ctx, createUploadedFile,
+		arg.FilePath,
+		arg.FileName,
+		arg.MimeType,
+		arg.SizeBytes,
+		arg.UploadedBy,
+	)
+	var i UploadedFile
+	err := row.Scan(
+		&i.ID,
+		&i.FilePath,
+		&i.FileName,
+		&i.MimeType,
+		&i.SizeBytes,
+		&i.UploadedBy,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const listUploadedFiles = `-- name: ListUploadedFiles :many
+SELECT id, file_path, file_name, mime_type, size_bytes, uploaded_by, created_at FROM uploaded_files ORDER BY created_at DESC
+`
+
+func (q *Queries) ListUploadedFiles(ctx context.Context) ([]UploadedFile, error) {
+	rows, err := q.db.Query(ctx, listUploadedFiles)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []UploadedFile{}
+	for rows.Next() {
+		var i UploadedFile
+		if err := rows.Scan(
+			&i.ID,
+			&i.FilePath,
+			&i.FileName,
+			&i.MimeType,
+			&i.SizeBytes,
+			&i.UploadedBy,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const deleteUploadedFile = `-- name: DeleteUploadedFile :exec
+DELETE FROM uploaded_files WHERE id = $1
+`
+
+func (q *Queries) DeleteUploadedFile(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteUploadedFile, id)
+	return err
 }

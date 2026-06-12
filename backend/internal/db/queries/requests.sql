@@ -234,7 +234,7 @@ SELECT * FROM request_images WHERE request_id = $1;
 INSERT INTO request_line_items (request_id, service_id) VALUES ($1, $2) RETURNING *;
 
 -- name: ListRequestLineItems :many
-SELECT rli.*, s.name AS service_name
+SELECT rli.*, s.name AS service_name, s.price AS service_price
 FROM request_line_items rli
 JOIN services s ON s.id = rli.service_id
 WHERE rli.request_id = $1

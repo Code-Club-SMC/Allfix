@@ -11,6 +11,22 @@ export interface Service {
 	/** Lucide icon name (lowercase, e.g. "zap", "droplets") */
 	icon: string;
 	created_at: string;
+	parent_id?: string | null;
+	is_subcategory?: boolean;
+	image_url?: string | null;
+	price?: string | null;
+	discount_percentage?: number | null;
+	rating?: string | null;
+	review_count?: number | null;
+}
+
+export interface CategoryWithCount extends Service {
+	sub_service_count: number;
+}
+
+export interface CategoryDetail {
+	category: CategoryWithCount;
+	services: Service[];
 }
 
 // ─── Service Requests ─────────────────────────────────────────────────────────
@@ -72,6 +88,7 @@ export interface RequestServiceItem {
 	request_id: string;
 	service_id: string;
 	service_name: string;
+	service_price?: string | null;
 	created_at: string;
 }
 
