@@ -22,6 +22,8 @@ import VendorProfile from "./pages/admin/VendorProfile";
 import ClientBooking from "./pages/client/Booking";
 // Client-facing pages (public — no auth)
 import ClientCatalog from "./pages/client/Catalog";
+import CategoryDetail from "./pages/client/CategoryDetail";
+import Contact from "./pages/client/Contact";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient({
@@ -40,31 +42,47 @@ const App = () => (
 				<Sonner />
 				<BrowserRouter>
 					<Routes>
-						{/* ── Public client booking experience (no sign-in required) ── */}
-						<Route
-							path="/"
-							element={
-								<ClientShell>
-									<ClientCatalog />
-								</ClientShell>
-							}
-						/>
-						<Route
-							path="/book/:service"
-							element={
-								<ClientShell>
-									<ClientBooking />
-								</ClientShell>
-							}
-						/>
-						<Route
-							path="/book"
-							element={
-								<ClientShell>
-									<ClientBooking />
-								</ClientShell>
-							}
-						/>
+		{/* ── Public client booking experience (no sign-in required) ─ */}
+		<Route
+			path="/"
+			element={
+				<ClientShell>
+					<ClientCatalog />
+				</ClientShell>
+			}
+		/>
+		<Route
+			path="/category/:id"
+			element={
+				<ClientShell>
+					<CategoryDetail />
+				</ClientShell>
+			}
+		/>
+		<Route
+			path="/book/:service"
+			element={
+				<ClientShell>
+					<ClientBooking />
+				</ClientShell>
+			}
+		/>
+		<Route
+			path="/book"
+			element={
+				<ClientShell>
+					<ClientBooking />
+				</ClientShell>
+			}
+		/>
+		<Route
+			path="/contact"
+			element={
+				<ClientShell>
+					<Contact />
+				</ClientShell>
+			}
+		/>
 
 						{/* ── Admin login (public) ── */}
 						<Route path="/admin/login" element={<AdminLogin />} />

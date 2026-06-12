@@ -69,6 +69,7 @@ const Requests = () => {
   // Vendor selection state lifted from VendorAssignmentSection
   const [selectedVendorId, setSelectedVendorId] = useState("");
   const [initialVendorId, setInitialVendorId] = useState("");
+  const [editStatus, setEditStatus] = useState("");
 
   const { mutate: assignVendor, isPending: isAssigningVendor } = useAssignVendor();
 
@@ -79,6 +80,7 @@ const Requests = () => {
       setSelectedVendorId("");
       setInitialVendorId("");
       setAssignMode("worker");
+      setEditStatus("");
       return;
     }
     if (requestWorkers) {
@@ -93,6 +95,7 @@ const Requests = () => {
     if (detailData?.request) {
       const hasVendor = !!detailData.request.vendor_id;
       setAssignMode(hasVendor ? "vendor" : "worker");
+      setEditStatus(detailData.request.status || "");
       if (hasVendor) {
         setSelectedVendorId(detailData.request.vendor_id);
         setInitialVendorId(detailData.request.vendor_id);
@@ -139,11 +142,10 @@ const Requests = () => {
   const handleSave = () => {
     if (!open || !openId) return;
 
-    const statusSelect = document.getElementById("editStatus") as HTMLSelectElement;
     const notesArea = document.getElementById("editNotes") as HTMLTextAreaElement;
 
     const updates: any = {};
-    if (statusSelect.value !== open.status) updates.status = statusSelect.value;
+    if (editStatus !== open.status) updates.status = editStatus;
     if (notesArea.value !== open.internal_notes) updates.internalNotes = notesArea.value;
     const hasStatusNotesUpdates = Object.keys(updates).length > 0;
 
@@ -347,7 +349,7 @@ const Requests = () => {
           <>
             <Button variant="outline" onClick={() => setOpenId(null)}>Close</Button>
             <Button
-              disabled={isUpdating || isAssigningWorkers || isAssigningVendor || isLoadingWorkers}
+              disabled={isUpdating || isAssigningWorkers || isAssigningVendor || isLoadingWorkers || editStatus === "pending"}
               onClick={handleSave}
             >
               {isUpdating || isAssigningWorkers || isAssigningVendor ? "Saving..." : "Save Changes"}
@@ -470,7 +472,7 @@ const Requests = () => {
                 )}
 
                 <Field label="Status">
-                  <Select id="editStatus" defaultValue={open.status}>
+                  <Select id="editStatus" value={editStatus} onChange={(e) => setEditStatus(e.target.value)}>
                     {(["pending","assigned","in_progress","completed","invoiced"]).map((s) =>
                       <option key={s} value={s}>{s}</option>)}
                   </Select>

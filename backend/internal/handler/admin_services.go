@@ -19,11 +19,14 @@ func NewAdminServicesHandler(q *db.Queries) *AdminServicesHandler {
 // POST /api/admin/services
 func (h *AdminServicesHandler) Create(w http.ResponseWriter, r *http.Request) {
 	body, err := decode[struct {
-		Name          string  `json:"name"`
-		Description   string  `json:"description"`
-		Icon          string  `json:"icon"`
-		ParentID      *string `json:"parentId"`
-		IsSubcategory bool    `json:"isSubcategory"`
+		Name                string   `json:"name"`
+		Description         string   `json:"description"`
+		Icon                string   `json:"icon"`
+		ParentID            *string  `json:"parentId"`
+		IsSubcategory       bool     `json:"isSubcategory"`
+		ImageUrl            *string  `json:"imageUrl"`
+		Price               *string  `json:"price"`
+		DiscountPercentage  *int32   `json:"discountPercentage"`
 	}](r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
@@ -45,6 +48,21 @@ func (h *AdminServicesHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Description:   body.Description,
 		Icon:          icon,
 		IsSubcategory: body.IsSubcategory,
+		ImageUrl:      body.ImageUrl,
+	}
+
+	// Parse price if provided
+	if body.Price != nil && *body.Price != "" {
+		var price pgtype.Numeric
+		if err := price.Scan(*body.Price); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid price value")
+			return
+		}
+		params.Price = price
+	}
+
+	if body.DiscountPercentage != nil {
+		params.DiscountPercentage = *body.DiscountPercentage
 	}
 
 	if body.ParentID != nil && *body.ParentID != "" {
@@ -85,11 +103,16 @@ func (h *AdminServicesHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	body, err := decode[struct {
-		Name          *string `json:"name"`
-		Description   *string `json:"description"`
-		Icon          *string `json:"icon"`
-		ParentID      *string `json:"parentId"`
-		IsSubcategory *bool   `json:"isSubcategory"`
+		Name                *string  `json:"name"`
+		Description         *string  `json:"description"`
+		Icon                *string  `json:"icon"`
+		ParentID            *string  `json:"parentId"`
+		IsSubcategory       *bool    `json:"isSubcategory"`
+		ImageUrl            *string  `json:"imageUrl"`
+		Price               *string  `json:"price"`
+		DiscountPercentage  *int32   `json:"discountPercentage"`
+		Rating              *string  `json:"rating"`
+		ReviewCount         *int32   `json:"reviewCount"`
 	}](r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
@@ -101,6 +124,34 @@ func (h *AdminServicesHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Name:        body.Name,
 		Description: body.Description,
 		Icon:        body.Icon,
+		ImageUrl:    body.ImageUrl,
+	}
+
+	// Parse price if provided
+	if body.Price != nil && *body.Price != "" {
+		var price pgtype.Numeric
+		if err := price.Scan(*body.Price); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid price value")
+			return
+		}
+		params.Price = price
+	}
+
+	if body.DiscountPercentage != nil {
+		params.DiscountPercentage = body.DiscountPercentage
+	}
+
+	if body.Rating != nil && *body.Rating != "" {
+		var rating pgtype.Numeric
+		if err := rating.Scan(*body.Rating); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid rating value")
+			return
+		}
+		params.Rating = rating
+	}
+
+	if body.ReviewCount != nil {
+		params.ReviewCount = body.ReviewCount
 	}
 
 	if body.ParentID != nil {
@@ -182,4 +233,40 @@ func (h *AdminServicesHandler) ListCategories(w http.ResponseWriter, r *http.Req
 		return
 	}
 	writeJSON(w, http.StatusOK, categories)
+}
+
+// GET /api/admin/services/categories-with-counts
+func (h *AdminServicesHandler) ListCategoriesWithCounts(w http.ResponseWriter, r *http.Request) {
+	categories, err := h.q.ListCategoriesWithCounts(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not fetch categories")
+		return
+	}
+	writeJSON(w, http.StatusOK, categories)
+}
+
+// GET /api/admin/services/category/{id}
+func (h *AdminServicesHandler) GetCategoryWithServices(w http.ResponseWriter, r *http.Request) {
+	id, err := parseUUIDFromPath(r, "id")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	category, err := h.q.GetCategoryWithCount(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "category not found")
+		return
+	}
+
+	services, err := h.q.ListServicesByCategory(r.Context(), pgtype.UUID{Bytes: id, Valid: true})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not fetch services")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"category": category,
+		"services": services,
+	})
 }

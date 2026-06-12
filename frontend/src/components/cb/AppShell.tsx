@@ -31,7 +31,7 @@ const Sidebar = () => {
     <aside className="hidden w-[260px] shrink-0 border-r border-border bg-surface md:flex md:flex-col">
       <div className="flex h-14 items-center border-b border-border px-5">
         <div className="flex items-center gap-2.5">
-          <div className="h-6 w-6 rounded-[4px] bg-primary" aria-hidden />
+          <img src="/allfix-logo.jpeg" alt="Allfix" className="h-7 w-7 rounded-[4px] object-cover" />
           <span className="text-[15px] font-semibold tracking-tight">Allfix</span>
         </div>
       </div>

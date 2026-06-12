@@ -597,6 +597,7 @@ func (h *AdminInvoicesHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Total              *string           `json:"total"`
 		Notes              *string           `json:"notes"`
 		Status             *string           `json:"status"`
+		VendorCommission   *string           `json:"vendorCommission"`
 		LineItems          []lineItemInput   `json:"lineItems"`
 		Commissions        []commissionInput `json:"commissions"`
 	}](r)
@@ -634,7 +635,12 @@ func (h *AdminInvoicesHandler) Update(w http.ResponseWriter, r *http.Request) {
 			Total:              stringToPgNumericOrZero(body.Total),
 			Notes:              body.Notes,
 			Status:             body.Status,
-			VendorCommission:   existingInvoice.VendorCommission,
+			VendorCommission: func() pgtype.Numeric {
+				if body.VendorCommission != nil {
+					return stringToPgNumeric(body.VendorCommission)
+				}
+				return existingInvoice.VendorCommission
+			}(),
 		}
 		invoice, err = qtx.UpdateInvoice(r.Context(), params)
 		if err != nil {
@@ -723,7 +729,12 @@ func (h *AdminInvoicesHandler) Update(w http.ResponseWriter, r *http.Request) {
 				Total:              stringToPgNumericOrZero(body.Total),
 				Notes:              body.Notes,
 				Status:             body.Status,
-				VendorCommission:   existingInvoice.VendorCommission,
+				VendorCommission: func() pgtype.Numeric {
+					if body.VendorCommission != nil {
+						return stringToPgNumeric(body.VendorCommission)
+					}
+					return existingInvoice.VendorCommission
+				}(),
 			}
 			invoice, err = qtx.UpdateInvoice(r.Context(), params)
 			if err != nil {
@@ -801,7 +812,12 @@ func (h *AdminInvoicesHandler) Update(w http.ResponseWriter, r *http.Request) {
 				Total:              stringToPgNumericOrZero(body.Total),
 				Notes:              body.Notes,
 				Status:             body.Status,
-				VendorCommission:   existingInvoice.VendorCommission,
+				VendorCommission: func() pgtype.Numeric {
+					if body.VendorCommission != nil {
+						return stringToPgNumeric(body.VendorCommission)
+					}
+					return existingInvoice.VendorCommission
+				}(),
 			}
 			invoice, err = h.q.UpdateInvoice(r.Context(), params)
 			if err != nil {

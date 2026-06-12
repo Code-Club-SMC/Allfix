@@ -765,7 +765,7 @@ func (q *Queries) ListRequestImages(ctx context.Context, requestID uuid.UUID) ([
 }
 
 const listRequestLineItems = `-- name: ListRequestLineItems :many
-SELECT rli.id, rli.request_id, rli.service_id, rli.created_at, s.name AS service_name
+SELECT rli.id, rli.request_id, rli.service_id, rli.created_at, s.name AS service_name, s.price AS service_price
 FROM request_line_items rli
 JOIN services s ON s.id = rli.service_id
 WHERE rli.request_id = $1
@@ -773,11 +773,12 @@ ORDER BY rli.created_at
 `
 
 type ListRequestLineItemsRow struct {
-	ID          uuid.UUID `db:"id" json:"id"`
-	RequestID   uuid.UUID `db:"request_id" json:"request_id"`
-	ServiceID   uuid.UUID `db:"service_id" json:"service_id"`
-	CreatedAt   time.Time `db:"created_at" json:"created_at"`
-	ServiceName string    `db:"service_name" json:"service_name"`
+	ID           uuid.UUID `db:"id" json:"id"`
+	RequestID    uuid.UUID `db:"request_id" json:"request_id"`
+	ServiceID    uuid.UUID `db:"service_id" json:"service_id"`
+	CreatedAt    time.Time `db:"created_at" json:"created_at"`
+	ServiceName  string    `db:"service_name" json:"service_name"`
+	ServicePrice string    `db:"service_price" json:"service_price"`
 }
 
 func (q *Queries) ListRequestLineItems(ctx context.Context, requestID uuid.UUID) ([]ListRequestLineItemsRow, error) {
@@ -795,6 +796,7 @@ func (q *Queries) ListRequestLineItems(ctx context.Context, requestID uuid.UUID)
 			&i.ServiceID,
 			&i.CreatedAt,
 			&i.ServiceName,
+			&i.ServicePrice,
 		); err != nil {
 			return nil, err
 		}

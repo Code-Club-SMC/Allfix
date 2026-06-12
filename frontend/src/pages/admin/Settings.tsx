@@ -1,5 +1,5 @@
-import { AlertCircle, AlertTriangle, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
-import { useState } from "react";
+import { AlertCircle, AlertTriangle, Loader2, Pencil, Plus, Trash2, X, Upload } from "lucide-react";
+import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { Button, Field, TextArea, TextInput } from "@/components/cb/Form";
 import { PageHeader } from "@/components/cb/PageHeader";
@@ -11,27 +11,16 @@ import {
 	useUpdateService,
 } from "@/hooks/useServices";
 import { useClearData } from "@/hooks/useAdmin";
+import { apiFetch } from "@/lib/api";
 
-const ICON_OPTIONS = [
-	"wrench",
-	"zap",
-	"droplets",
-	"flame",
-	"hammer",
-	"wind",
-	"paintbrush",
-	"layers",
-	"palette",
-	"grid-3x3",
-	"square",
-	"settings-2",
-	"sparkles",
-	"scissors",
-	"cpu",
-	"tool",
-];
-
-const blankForm = () => ({ name: "", description: "", icon: "wrench", parentId: "", isSubcategory: false });
+const blankForm = () => ({
+	name: "",
+	description: "",
+	parentId: "",
+	isSubcategory: false,
+	imageUrl: "",
+	price: "",
+});
 
 const Settings = () => {
 	const { data: services, isLoading, isError } = useServicesHierarchical();
@@ -53,6 +42,7 @@ const Settings = () => {
 	const [editId, setEditId] = useState<string | null>(null);
 	const [form, setForm] = useState(blankForm());
 	const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	const isSaving = creating || updating;
 	const saveError = (createError || updateError) as Error | null;
@@ -69,9 +59,10 @@ const Settings = () => {
 		setForm({
 			name: s.name,
 			description: s.description,
-			icon: s.icon || "wrench",
 			parentId: s.parent_id || "",
 			isSubcategory: s.is_subcategory || false,
+			imageUrl: s.image_url || "",
+			price: s.price || "",
 		});
 		setEditId(s.id);
 		setShowAdd(true);
@@ -88,12 +79,11 @@ const Settings = () => {
 		const payload: any = {
 			name: form.name,
 			description: form.description,
-			icon: form.icon,
+			parentId: form.parentId || undefined,
+			isSubcategory: !!form.parentId,
+			imageUrl: form.imageUrl || null,
+			price: form.price ? String(form.price) : null,
 		};
-		if (form.parentId) {
-			payload.parentId = form.parentId;
-			payload.isSubcategory = true;
-		}
 		if (editId) {
 			updateService({ id: editId, ...payload }, { onSuccess: closeForm });
 		} else {
@@ -185,30 +175,17 @@ const Settings = () => {
 									</p>
 								)}
 							</Field>
-							<Field label="Icon">
+							<Field label="Price (Rs)">
 								<TextInput
-									value={form.icon}
+									type="number"
+									value={form.price}
 									onChange={(e) =>
-										setForm((p) => ({ ...p, icon: e.target.value }))
+										setForm((p) => ({ ...p, price: e.target.value }))
 									}
-									placeholder="e.g. zap"
-									list="icon-suggestions"
+									placeholder="e.g. 1000"
 								/>
-								<datalist id="icon-suggestions">
-									{ICON_OPTIONS.map((i) => (
-										<option key={i} value={i} />
-									))}
-								</datalist>
 								<p className="mt-1 text-[11px] text-muted-foreground">
-									Lucide icon name —{" "}
-									<a
-										href="https://lucide.dev/icons"
-										target="_blank"
-										rel="noreferrer"
-										className="text-primary underline"
-									>
-										browse icons
-									</a>
+									Leave empty if pricing varies
 								</p>
 							</Field>
 							<Field label="Description" className="sm:col-span-2">
@@ -220,6 +197,68 @@ const Settings = () => {
 									}
 									placeholder="Brief description shown to clients"
 								/>
+							</Field>
+							<Field label="Service Image" className="sm:col-span-2">
+								<div className="space-y-3">
+									{form.imageUrl && (
+										<div className="relative aspect-video w-full max-w-xs overflow-hidden rounded-lg border border-border">
+											<img
+												src={form.imageUrl}
+												alt="Preview"
+												className="h-full w-full object-cover"
+											/>
+											<button
+												type="button"
+												onClick={() => setForm((p) => ({ ...p, imageUrl: "" }))}
+												className="absolute top-2 right-2 rounded-full bg-black/50 p-1 text-white hover:bg-black/70"
+											>
+												<X className="h-4 w-4" />
+											</button>
+										</div>
+									)}
+									<div className="flex items-center gap-3">
+										<label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-subtle">
+											<Upload className="h-4 w-4" />
+											Upload Image
+										<input
+											ref={fileInputRef}
+											type="file"
+											accept="image/*"
+											className="hidden"
+											onChange={async (e) => {
+												const file = e.target.files?.[0];
+												if (!file) return;
+
+												const formData = new FormData();
+												formData.append("file", file);
+
+												try {
+													const result = await apiFetch<{ url: string }>("/api/admin/upload", {
+														method: "POST",
+														body: formData,
+													});
+													setForm((p) => ({ ...p, imageUrl: result.url }));
+													toast.success("Image uploaded successfully");
+												} catch (err) {
+													toast.error("Failed to upload image");
+												} finally {
+													if (fileInputRef.current) {
+														fileInputRef.current.value = "";
+													}
+												}
+											}}
+										/>
+										</label>
+										{form.imageUrl && (
+											<span className="text-xs text-muted-foreground">
+												Image attached
+											</span>
+										)}
+									</div>
+									<p className="text-[11px] text-muted-foreground">
+										Upload a service image (max 10MB). Supported: JPG, PNG, GIF, WebP
+									</p>
+								</div>
 							</Field>
 						</div>
 
@@ -259,6 +298,7 @@ const Settings = () => {
 							<tr className="border-b border-border text-left">
 								<th className="cb-label px-5 py-2.5">Name</th>
 								<th className="cb-label px-5 py-2.5">Description</th>
+								<th className="cb-label px-5 py-2.5">Price</th>
 								<th className="cb-label px-5 py-2.5">Type</th>
 								<th className="cb-label px-5 py-2.5 text-right">Actions</th>
 							</tr>
@@ -276,8 +316,17 @@ const Settings = () => {
 													s.name
 												)}
 											</td>
-											<td className="max-w-[300px] truncate px-5 py-3 text-muted-foreground">
+											<td className="max-w-[200px] truncate px-5 py-3 text-muted-foreground">
 												{s.description}
+											</td>
+											<td className="px-5 py-3">
+												{s.price ? (
+													<span className="font-medium text-foreground">
+														Rs {parseFloat(s.price).toLocaleString()}
+													</span>
+												) : (
+													<span className="text-muted-foreground">—</span>
+												)}
 											</td>
 											<td className="px-5 py-3">
 												{s.is_subcategory ? (
@@ -332,7 +381,7 @@ const Settings = () => {
 							{serviceList.length === 0 && (
 								<tr>
 									<td
-										colSpan={4}
+										colSpan={5}
 										className="py-12 text-center text-[13px] text-muted-foreground"
 									>
 										No services yet. Start by creating a category, then add services under it.

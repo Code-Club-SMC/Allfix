@@ -164,13 +164,18 @@ type SalaryPayment struct {
 }
 
 type Service struct {
-	ID            uuid.UUID   `db:"id" json:"id"`
-	Name          string      `db:"name" json:"name"`
-	Description   string      `db:"description" json:"description"`
-	Icon          string      `db:"icon" json:"icon"`
-	CreatedAt     time.Time   `db:"created_at" json:"created_at"`
-	ParentID      pgtype.UUID `db:"parent_id" json:"parent_id"`
-	IsSubcategory bool        `db:"is_subcategory" json:"is_subcategory"`
+	ID                  uuid.UUID      `db:"id" json:"id"`
+	Name                string         `db:"name" json:"name"`
+	Description         string         `db:"description" json:"description"`
+	Icon                string         `db:"icon" json:"icon"`
+	CreatedAt           time.Time      `db:"created_at" json:"created_at"`
+	ParentID            pgtype.UUID    `db:"parent_id" json:"parent_id"`
+	IsSubcategory       bool           `db:"is_subcategory" json:"is_subcategory"`
+	ImageUrl            *string        `db:"image_url" json:"image_url"`
+	Price               pgtype.Numeric `db:"price" json:"price"`
+	DiscountPercentage  int32          `db:"discount_percentage" json:"discount_percentage"`
+	Rating              pgtype.Numeric `db:"rating" json:"rating"`
+	ReviewCount         int32          `db:"review_count" json:"review_count"`
 }
 
 type ServiceRequest struct {
@@ -266,4 +271,30 @@ type WorkerCommission struct {
 	Status    string         `db:"status" json:"status"`
 	PaidAt    time.Time      `db:"paid_at" json:"paid_at"`
 	CreatedAt time.Time      `db:"created_at" json:"created_at"`
+}
+
+type UploadedFile struct {
+	ID         uuid.UUID      `db:"id" json:"id"`
+	FilePath   string         `db:"file_path" json:"file_path"`
+	FileName   string         `db:"file_name" json:"file_name"`
+	MimeType   string         `db:"mime_type" json:"mime_type"`
+	SizeBytes  int64          `db:"size_bytes" json:"size_bytes"`
+	UploadedBy pgtype.UUID    `db:"uploaded_by" json:"uploaded_by"`
+	CreatedAt  time.Time      `db:"created_at" json:"created_at"`
+}
+
+type CategoryWithCount struct {
+	ID                  uuid.UUID      `db:"id" json:"id"`
+	Name                string         `db:"name" json:"name"`
+	Description         string         `db:"description" json:"description"`
+	Icon                string         `db:"icon" json:"icon"`
+	CreatedAt           time.Time      `db:"created_at" json:"created_at"`
+	ParentID            pgtype.UUID    `db:"parent_id" json:"parent_id"`
+	IsSubcategory       bool           `db:"is_subcategory" json:"is_subcategory"`
+	ImageUrl            *string        `db:"image_url" json:"image_url"`
+	Price               pgtype.Numeric `db:"price" json:"price"`
+	DiscountPercentage  int32          `db:"discount_percentage" json:"discount_percentage"`
+	Rating              pgtype.Numeric `db:"rating" json:"rating"`
+	ReviewCount         int32          `db:"review_count" json:"review_count"`
+	SubServiceCount     int64          `db:"sub_service_count" json:"sub_service_count"`
 }

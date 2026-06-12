@@ -20,6 +20,7 @@ import {
 	useSystemAccount,
 	useUpdateInvoice,
 } from "@/hooks/useAdmin";
+import { useServices } from "@/hooks/useServices";
 import { RequestStatus } from "@/types/api";
 
 const fmt = (n: number | string) => `PKR ${Number(n).toLocaleString()}`;
@@ -93,6 +94,7 @@ const Invoices = () => {
 	const { mutate: updateInvoice, isPending: isUpdatingInvoice } =
 		useUpdateInvoice();
 	const { data: accountData } = useSystemAccount();
+	const { data: allServices } = useServices();
 
 	const [workerCommissions, setWorkerCommissions] = useState<
 		Record<string, string>
@@ -134,16 +136,35 @@ const Invoices = () => {
 
 	// Auto-populate line items from request services
 	useEffect(() => {
+		// Build price lookup from allServices
+		const priceByServiceId: Record<string, number> = {};
+		if (allServices) {
+			for (const svc of allServices) {
+				if (svc.price) {
+					priceByServiceId[svc.id] = Number(svc.price);
+				}
+			}
+		}
+
 		if (selectedRequestServices.length > 0) {
 			setCreateLineItems(
-				selectedRequestServices.map((s: any) => ({
-					description: s.service_name || s.name || "Service",
-					quantity: 1,
-					rate: 0,
-				})),
+				selectedRequestServices.map((s: any) => {
+					// Try service_price from API, then fallback to allServices lookup
+					const apiPrice = Number(s.service_price || s.price);
+					const lookupPrice = priceByServiceId[s.service_id] ?? 0;
+					return {
+						description: s.service_name || s.name || "Service",
+						quantity: 1,
+						rate: apiPrice > 0 ? apiPrice : lookupPrice,
+					};
+				}),
 			);
 		} else if (selectedRequest) {
 			// Fallback: single line item from service summary
+			// Try to find price from allServices by service_id
+			const fallbackPrice = selectedRequest.service_id
+				? priceByServiceId[selectedRequest.service_id] ?? 0
+				: 0;
 			setCreateLineItems([
 				{
 					description:
@@ -151,13 +172,13 @@ const Invoices = () => {
 						selectedRequest.service_name ||
 						"Service",
 					quantity: 1,
-					rate: 0,
+					rate: fallbackPrice,
 				},
 			]);
 		} else {
 			setCreateLineItems([]);
 		}
-	}, [selectedRequestServices, selectedRequest]);
+	}, [selectedRequestServices, selectedRequest, allServices]);
 
 	useEffect(() => {
 		if (workerList.length > 0) {
@@ -197,7 +218,9 @@ const Invoices = () => {
 	const canSubmitCreate =
 		selectedRequestId &&
 		selectedRequest &&
-		(isVendorRequest || selectedRequest.worker_count > 0) &&
+		(isVendorRequest
+			? Number(vendorCommission) > 0
+			: selectedRequest.worker_count > 0) &&
 		createLineItems.length > 0 &&
 		calculatedTotal > 0;
 
@@ -263,6 +286,8 @@ const Invoices = () => {
 		commissions: [] as { workerId: string; amount: string }[],
 	});
 
+	const [editVendorCommission, setEditVendorCommission] = useState("");
+
 	const calcTotals = (items: typeof form.lineItems) => {
 		const st = items.reduce((sum, it) => sum + it.quantity * it.rate, 0);
 		return { subtotal: String(st), total: String(st) };
@@ -321,6 +346,9 @@ const Invoices = () => {
 		payload.total = form.total;
 		if (form.notes) payload.notes = form.notes;
 		payload.status = form.status;
+		if (editVendorCommission && Number(editVendorCommission) >= 0) {
+			payload.vendorCommission = editVendorCommission;
+		}
 		payload.lineItems = form.lineItems.map((li) => ({
 			description: li.description,
 			quantity: li.quantity,
@@ -364,6 +392,11 @@ const Invoices = () => {
 					amount: String(c.amount),
 				})),
 			});
+			setEditVendorCommission(
+				Number(open.vendor_commission || 0) > 0
+					? String(open.vendor_commission)
+					: "",
+			);
 		}
 	}, [open, lineItems, commissions]);
 
@@ -736,13 +769,15 @@ const Invoices = () => {
 					)}
 
 					{/* Invoice Status */}
-					<Field label="Status">
-						<Select value={createInvoiceStatus} onChange={(e) => setCreateInvoiceStatus(e.target.value)}>
-							<option value="draft">Draft</option>
-							<option value="sent">Sent</option>
-							<option value="paid">Paid</option>
-						</Select>
-					</Field>
+					<div className="rounded-md border border-primary/30 bg-primary/[0.03] px-3.5 py-3">
+						<Field label="Invoice Status">
+							<Select value={createInvoiceStatus} onChange={(e) => setCreateInvoiceStatus(e.target.value)} className="h-10 font-medium">
+								<option value="draft">Draft</option>
+								<option value="sent">Sent</option>
+								<option value="paid">Paid</option>
+							</Select>
+						</Field>
+					</div>
 
 					{/* Account Balance */}
 					{accountData && (
@@ -918,7 +953,7 @@ const Invoices = () => {
 									onChange={(e) =>
 										setForm((f) => ({ ...f, status: e.target.value }))
 									}
-									className="h-9 w-full rounded-md border border-border bg-surface px-2 text-[13px]"
+									className="h-10 w-full rounded-md border border-primary/30 bg-primary/[0.03] px-3 font-medium text-[13px] text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
 								>
 									<option value="draft">Draft</option>
 									<option value="sent">Sent</option>
@@ -1043,6 +1078,30 @@ const Invoices = () => {
 							})()}
 						</div>
 
+						{open.vendor_commission != null && (
+							<div className="border-t border-border pt-3">
+								<Field label="Vendor Commission %">
+									<TextInput
+										type="number"
+										min="0"
+										max="100"
+										step="0.01"
+										value={editVendorCommission}
+										onChange={(e) => setEditVendorCommission(e.target.value)}
+									/>
+								</Field>
+								{editVendorCommission && Number(editVendorCommission) > 0 && (
+									<div className="mt-1.5 text-[12px] text-warning">
+										= PKR{" "}
+										{(
+											(Number(form.total) * Number(editVendorCommission)) /
+											100
+										).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+									</div>
+								)}
+							</div>
+						)}
+
 						<div className="border-t border-border pt-3">
 							<div className="ml-auto w-full max-w-[260px] space-y-1">
 								<Row label="Subtotal" value={fmt(form.subtotal)} />
@@ -1052,26 +1111,26 @@ const Invoices = () => {
 										{fmt(form.total)}
 									</span>
 								</div>
-								{Number(open.vendor_commission || 0) > 0 && (
-									<>
-										<div className="flex items-center justify-between text-warning">
-											<span className="text-[12px]">Vendor Commission ({open.vendor_commission}%)</span>
-											<span className="text-[12px]">
-												- {fmt(Number(form.total) * Number(open.vendor_commission) / 100)}
-											</span>
-										</div>
-										<div className="flex items-center justify-between text-success">
-											<span className="text-[12px] font-medium">
-												Net Revenue
-											</span>
-											<span className="text-[12px] font-medium">
-												{fmt(
-													Number(form.total) * (1 - Number(open.vendor_commission) / 100),
-												)}
-											</span>
-										</div>
-									</>
-								)}
+							{Number(editVendorCommission || open.vendor_commission || 0) > 0 && (
+								<>
+									<div className="flex items-center justify-between text-warning">
+										<span className="text-[12px]">Vendor Commission ({editVendorCommission || open.vendor_commission}%)</span>
+										<span className="text-[12px]">
+											- {fmt(Number(form.total) * Number(editVendorCommission || open.vendor_commission) / 100)}
+										</span>
+									</div>
+									<div className="flex items-center justify-between text-success">
+										<span className="text-[12px] font-medium">
+											Net Revenue
+										</span>
+										<span className="text-[12px] font-medium">
+											{fmt(
+												Number(form.total) * (1 - Number(editVendorCommission || open.vendor_commission) / 100),
+											)}
+										</span>
+									</div>
+								</>
+							)}
 							</div>
 						</div>
 
@@ -1105,6 +1164,8 @@ const Invoices = () => {
 				>
 					<div className="overflow-y-auto px-1 py-1 text-[12.5px]">
 						<div className="flex items-start justify-between">
+						<div className="flex items-start gap-3">
+							<img src="/allfix-logo.jpeg" alt="Allfix" className="h-10 w-10 rounded-lg object-cover" />
 							<div>
 								<div className="text-[20px] font-semibold tracking-tight">
 									Allfix
@@ -1116,6 +1177,7 @@ const Invoices = () => {
 									billing@allfix.pk
 								</div>
 							</div>
+						</div>
 							<div className="text-right">
 								<div className="text-[18px] font-semibold">Invoice</div>
 								<div className="text-[12px] text-muted-foreground">

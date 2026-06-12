@@ -31,6 +31,12 @@ graphify-out
 # Ignore local seed output
 backend/seed/
 
+# Uploaded files
+backend/uploads/
+
+# Build artifacts
+backend/bin/
+
 # Env files
 .env
 .env.*
