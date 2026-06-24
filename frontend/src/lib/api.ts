@@ -6,6 +6,22 @@
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "";
 
+/**
+ * Resolve an uploaded-file URL so the browser can load it.
+ *
+ * - Absolute URLs (http://, https://, data:, blob:) are returned as-is.
+ * - Relative URLs (e.g. "/uploads/abc.jpg") are prefixed with the API base
+ *   URL so they resolve against the backend, not the frontend origin.
+ *   This matters in production when the frontend and backend are on
+ *   different hosts (e.g. Render). In dev the Vite proxy still works
+ *   because BASE_URL is empty.
+ */
+export function resolveAssetUrl(url: string | null | undefined): string {
+	if (!url) return "";
+	if (/^(https?:|data:|blob:)/i.test(url)) return url;
+	return `${BASE_URL}${url}`;
+}
+
 export class ApiError extends Error {
 	constructor(
 		public readonly status: number,

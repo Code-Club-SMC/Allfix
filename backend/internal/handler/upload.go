@@ -16,15 +16,16 @@ import (
 )
 
 type UploadHandler struct {
-	uploadDir string
-	q         *db.Queries
+	uploadDir     string
+	q             *db.Queries
+	publicBaseURL string
 }
 
-func NewUploadHandler(uploadDir string, q *db.Queries) *UploadHandler {
+func NewUploadHandler(uploadDir string, q *db.Queries, publicBaseURL string) *UploadHandler {
 	if err := os.MkdirAll(uploadDir, 0755); err != nil {
 		slog.Error("could not create upload directory", "error", err, "dir", uploadDir)
 	}
-	return &UploadHandler{uploadDir: uploadDir, q: q}
+	return &UploadHandler{uploadDir: uploadDir, q: q, publicBaseURL: publicBaseURL}
 }
 
 // POST /api/admin/upload
@@ -85,8 +86,15 @@ func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		UploadedBy: pgtype.UUID{Valid: false},
 	})
 
-	// Return the URL path
-	url := fmt.Sprintf("/uploads/%s", filename)
+	// Return the URL path. When a public base URL is configured, return an
+	// absolute URL so the frontend can load the file directly from the
+	// backend (useful when the backend and frontend are on different
+	// origins, e.g. on Render).
+	path := fmt.Sprintf("/uploads/%s", filename)
+	url := path
+	if h.publicBaseURL != "" {
+		url = h.publicBaseURL + path
+	}
 	writeJSON(w, http.StatusOK, map[string]string{
 		"url":      url,
 		"filename": filename,

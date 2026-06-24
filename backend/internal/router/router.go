@@ -45,7 +45,7 @@ func New(cfg *config.Config, pool *pgxpool.Pool, q *db.Queries) http.Handler {
 	vendorH := handler.NewAdminVendorsHandler(q)
 	accountH := handler.NewSystemAccountHandler(q)
 	dataH := handler.NewAdminDataHandler(pool, q)
-	uploadH := handler.NewUploadHandler(filepath.Join(".", "uploads"), q)
+	uploadH := handler.NewUploadHandler(filepath.Join(".", "uploads"), q, cfg.PublicBaseURL)
 
 	requireAuth := mw.RequireAuth(cfg.JWTSecret)
 	requireAdmin := mw.RequireRole("admin")

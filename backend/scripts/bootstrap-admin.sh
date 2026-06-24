@@ -9,6 +9,8 @@
 # Usage (run from the backend/ directory):
 #   ./scripts/bootstrap-admin.sh status
 #   ./scripts/bootstrap-admin.sh create
+#   ./scripts/bootstrap-admin.sh create --target https://allfix-backend.onrender.com
+#   ./scripts/bootstrap-admin.sh status --target https://allfix-backend.onrender.com --secret "..."
 # =============================================================================
 set -euo pipefail
 
@@ -37,10 +39,47 @@ SAVED_ADMIN_PASSWORD="${ADMIN_PASSWORD:-}"
 [[ -n "$SAVED_ADMIN_EMAIL" ]]            && ADMIN_EMAIL="$SAVED_ADMIN_EMAIL"
 [[ -n "$SAVED_ADMIN_PASSWORD" ]]         && ADMIN_PASSWORD="$SAVED_ADMIN_PASSWORD"
 
+# ─── Parse CLI args (--target and --secret override env / .env values) ────────
+CLI_TARGET=""
+CLI_SECRET=""
+print_usage() {
+  echo -e "${BOLD}Usage:${RESET}"
+  echo "  ./scripts/bootstrap-admin.sh [status|create] [--target URL] [--secret SECRET]"
+  echo "  ./scripts/bootstrap-admin.sh status"
+  echo "  ./scripts/bootstrap-admin.sh create --target https://allfix-backend.onrender.com"
+  echo ""
+  echo -e "${BOLD}Flags:${RESET}"
+  echo "  --target URL     Backend base URL (overrides BASE_URL_LOCAL)"
+  echo "  --secret SECRET  Bootstrap secret (overrides BOOTSTRAP_SECRET_LOCAL / ADMIN_BOOTSTRAP_SECRET)"
+  echo ""
+  echo -e "${BOLD}Non-interactive (env vars):${RESET}"
+  echo "  ADMIN_NAME='Your Name' ADMIN_EMAIL='you@example.com' ADMIN_PASSWORD='pass1234' \\"
+  echo "    ./scripts/bootstrap-admin.sh create"
+}
+
+# First positional arg is the subcommand; rest are flags
+COMMAND="${1:-}"
+shift || true
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --target)  CLI_TARGET="${2:-}"; shift 2 ;;
+    --target=*) CLI_TARGET="${1#*=}"; shift ;;
+    --secret)  CLI_SECRET="${2:-}"; shift 2 ;;
+    --secret=*) CLI_SECRET="${1#*=}"; shift ;;
+    -h|--help) print_usage; exit 0 ;;
+    *)         die "Unknown argument: $1  (try --help)" ;;
+  esac
+done
+
+# CLI flags win over env vars
+[[ -n "$CLI_TARGET" ]] && BASE_URL_LOCAL="$CLI_TARGET"
+[[ -n "$CLI_SECRET" ]] && BOOTSTRAP_SECRET_LOCAL="$CLI_SECRET"
+
 # ─── Defaults ─────────────────────────────────────────────────────────────────
 BASE_URL="${BASE_URL_LOCAL:-http://localhost:8000}"
 BOOTSTRAP_SECRET="${BOOTSTRAP_SECRET_LOCAL:-${ADMIN_BOOTSTRAP_SECRET:-}}"
-ENDPOINT="${BASE_URL}/api/internal/bootstrap-admin"
+ENDPOINT="${BASE_URL%/}/api/internal/bootstrap-admin"
 
 # ─── Colours ──────────────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
@@ -54,9 +93,7 @@ die()     { echo -e "${RED}✖  ${RESET}$*" >&2; exit 1; }
 command -v curl >/dev/null 2>&1 || die "curl is required but not installed."
 command -v jq   >/dev/null 2>&1 || die "jq is required but not installed."
 
-[[ -n "$BOOTSTRAP_SECRET" ]] || die "BOOTSTRAP_SECRET / ADMIN_BOOTSTRAP_SECRET is not set. Check your .env.development file."
-
-COMMAND="${1:-}"
+[[ -n "$BOOTSTRAP_SECRET" ]] || die "BOOTSTRAP_SECRET is not set. Pass it via --secret, or set ADMIN_BOOTSTRAP_SECRET / BOOTSTRAP_SECRET_LOCAL, or check your .env files."
 
 # ─── status ───────────────────────────────────────────────────────────────────
 cmd_status() {
@@ -76,7 +113,7 @@ cmd_status() {
       if [[ "$bootstrapped" == "true" ]]; then
         success "Admin exists — ${count} admin account(s) found."
       else
-        warn "No admin account yet. Run:  ./scripts/bootstrap-admin.sh create"
+        warn "No admin account yet. Run:  ./scripts/bootstrap-admin.sh create --target ${BASE_URL}"
       fi
       ;;
     404) die "HTTP 404 — wrong bootstrap secret or server not running at ${BASE_URL}" ;;
@@ -148,13 +185,10 @@ info "Target: ${BOLD}${BASE_URL}${RESET}"
 case "$COMMAND" in
   status) cmd_status ;;
   create) cmd_create ;;
+  -h|--help|"") print_usage ;;
   *)
-    echo -e "${BOLD}Usage:${RESET}"
-    echo "  ./scripts/bootstrap-admin.sh status   — check if admin exists"
-    echo "  ./scripts/bootstrap-admin.sh create   — create the first admin"
-    echo ""
-    echo -e "${BOLD}Non-interactive (env vars):${RESET}"
-    echo "  ADMIN_NAME='Your Name' ADMIN_EMAIL='you@example.com' ADMIN_PASSWORD='pass1234' \\"
-    echo "    ./scripts/bootstrap-admin.sh create"
+    echo "Unknown command: ${COMMAND}" >&2
+    print_usage
+    exit 1
     ;;
 esac

@@ -20,6 +20,12 @@ type Config struct {
 	AllowedOrigins  []string
 	CookieSecure    bool
 	CookieSameSite  http.SameSite
+	// PublicBaseURL is the externally-reachable base URL of this backend
+	// (e.g. "https://allfix-backend.onrender.com"). Used to build absolute
+	// URLs for uploaded files. When empty, uploaded file URLs are returned
+	// as relative paths (useful for local development where the frontend
+	// dev server proxies /uploads/ to the backend).
+	PublicBaseURL string
 }
 
 func Load() (*Config, error) {
@@ -51,6 +57,7 @@ func Load() (*Config, error) {
 		AllowedOrigins:  parseCSV(getEnv("ALLOWED_ORIGINS", "")),
 		CookieSecure:    cookieSecure,
 		CookieSameSite:  cookieSameSite,
+		PublicBaseURL:   strings.TrimRight(getEnv("PUBLIC_BASE_URL", ""), "/"),
 	}
 
 	expiryStr := getEnv("JWT_EXPIRY_HOURS", "72")
