@@ -5,8 +5,8 @@ SELECT * FROM services ORDER BY name ASC;
 SELECT * FROM services WHERE id = $1;
 
 -- name: CreateService :one
-INSERT INTO services (name, description, icon, parent_id, is_subcategory, image_url, price, discount_percentage)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO services (name, description, icon, parent_id, is_subcategory, image_url, price, discount_percentage, terms_and_conditions)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 RETURNING *;
 
 -- name: UpdateService :one
@@ -21,7 +21,8 @@ SET
     price          = COALESCE(sqlc.narg(price), price),
     discount_percentage = COALESCE(sqlc.narg(discount_percentage), discount_percentage),
     rating         = COALESCE(sqlc.narg(rating), rating),
-    review_count   = COALESCE(sqlc.narg(review_count), review_count)
+    review_count   = COALESCE(sqlc.narg(review_count), review_count),
+    terms_and_conditions = COALESCE(sqlc.narg(terms_and_conditions), terms_and_conditions)
 WHERE id = $1
 RETURNING *;
 

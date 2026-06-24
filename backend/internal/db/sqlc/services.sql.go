@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -25,20 +26,21 @@ func (q *Queries) CountSubCategories(ctx context.Context, parentID pgtype.UUID) 
 }
 
 const createService = `-- name: CreateService :one
-INSERT INTO services (name, description, icon, parent_id, is_subcategory, image_url, price, discount_percentage)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, name, description, icon, created_at, parent_id, is_subcategory, image_url, price, discount_percentage, rating, review_count
+INSERT INTO services (name, description, icon, parent_id, is_subcategory, image_url, price, discount_percentage, terms_and_conditions)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, name, description, icon, created_at, parent_id, is_subcategory, image_url, price, discount_percentage, rating, review_count, terms_and_conditions
 `
 
 type CreateServiceParams struct {
-	Name                string         `db:"name" json:"name"`
-	Description         string         `db:"description" json:"description"`
-	Icon                string         `db:"icon" json:"icon"`
-	ParentID            pgtype.UUID    `db:"parent_id" json:"parent_id"`
-	IsSubcategory       bool           `db:"is_subcategory" json:"is_subcategory"`
-	ImageUrl            *string        `db:"image_url" json:"image_url"`
-	Price               pgtype.Numeric `db:"price" json:"price"`
-	DiscountPercentage  int32          `db:"discount_percentage" json:"discount_percentage"`
+	Name                   string         `db:"name" json:"name"`
+	Description            string         `db:"description" json:"description"`
+	Icon                   string         `db:"icon" json:"icon"`
+	ParentID               pgtype.UUID    `db:"parent_id" json:"parent_id"`
+	IsSubcategory          bool           `db:"is_subcategory" json:"is_subcategory"`
+	ImageUrl               *string        `db:"image_url" json:"image_url"`
+	Price                  pgtype.Numeric `db:"price" json:"price"`
+	DiscountPercentage     int32          `db:"discount_percentage" json:"discount_percentage"`
+	TermsAndConditions     json.RawMessage         `db:"terms_and_conditions" json:"terms_and_conditions"`
 }
 
 func (q *Queries) CreateService(ctx context.Context, arg CreateServiceParams) (Service, error) {
@@ -51,6 +53,7 @@ func (q *Queries) CreateService(ctx context.Context, arg CreateServiceParams) (S
 		arg.ImageUrl,
 		arg.Price,
 		arg.DiscountPercentage,
+		arg.TermsAndConditions,
 	)
 	var i Service
 	err := row.Scan(
@@ -66,6 +69,7 @@ func (q *Queries) CreateService(ctx context.Context, arg CreateServiceParams) (S
 		&i.DiscountPercentage,
 		&i.Rating,
 		&i.ReviewCount,
+		&i.TermsAndConditions,
 	)
 	return i, err
 }
@@ -80,7 +84,7 @@ func (q *Queries) DeleteService(ctx context.Context, id uuid.UUID) error {
 }
 
 const getServiceByID = `-- name: GetServiceByID :one
-SELECT id, name, description, icon, created_at, parent_id, is_subcategory, image_url, price, discount_percentage, rating, review_count FROM services WHERE id = $1
+SELECT id, name, description, icon, created_at, parent_id, is_subcategory, image_url, price, discount_percentage, rating, review_count, terms_and_conditions FROM services WHERE id = $1
 `
 
 func (q *Queries) GetServiceByID(ctx context.Context, id uuid.UUID) (Service, error) {
@@ -99,6 +103,7 @@ func (q *Queries) GetServiceByID(ctx context.Context, id uuid.UUID) (Service, er
 		&i.DiscountPercentage,
 		&i.Rating,
 		&i.ReviewCount,
+		&i.TermsAndConditions,
 	)
 	return i, err
 }
@@ -106,7 +111,7 @@ func (q *Queries) GetServiceByID(ctx context.Context, id uuid.UUID) (Service, er
 const listAllServicesWithParent = `-- name: ListAllServicesWithParent :many
 SELECT
     s.id, s.name, s.description, s.icon, s.created_at, s.parent_id, s.is_subcategory,
-    s.image_url, s.price, s.discount_percentage, s.rating, s.review_count,
+    s.image_url, s.price, s.discount_percentage, s.rating, s.review_count, s.terms_and_conditions,
     p.name as parent_name
 FROM services s
 LEFT JOIN services p ON s.parent_id = p.id
@@ -114,19 +119,20 @@ ORDER BY COALESCE(p.name, s.name), s.name
 `
 
 type ListAllServicesWithParentRow struct {
-	ID                  uuid.UUID      `db:"id" json:"id"`
-	Name                string         `db:"name" json:"name"`
-	Description         string         `db:"description" json:"description"`
-	Icon                string         `db:"icon" json:"icon"`
-	CreatedAt           time.Time      `db:"created_at" json:"created_at"`
-	ParentID            pgtype.UUID    `db:"parent_id" json:"parent_id"`
-	IsSubcategory       bool           `db:"is_subcategory" json:"is_subcategory"`
-	ImageUrl            *string        `db:"image_url" json:"image_url"`
-	Price               pgtype.Numeric `db:"price" json:"price"`
-	DiscountPercentage  int32          `db:"discount_percentage" json:"discount_percentage"`
-	Rating              pgtype.Numeric `db:"rating" json:"rating"`
-	ReviewCount         int32          `db:"review_count" json:"review_count"`
-	ParentName          *string        `db:"parent_name" json:"parent_name"`
+	ID                     uuid.UUID      `db:"id" json:"id"`
+	Name                   string         `db:"name" json:"name"`
+	Description            string         `db:"description" json:"description"`
+	Icon                   string         `db:"icon" json:"icon"`
+	CreatedAt              time.Time      `db:"created_at" json:"created_at"`
+	ParentID               pgtype.UUID    `db:"parent_id" json:"parent_id"`
+	IsSubcategory          bool           `db:"is_subcategory" json:"is_subcategory"`
+	ImageUrl               *string        `db:"image_url" json:"image_url"`
+	Price                  pgtype.Numeric `db:"price" json:"price"`
+	DiscountPercentage     int32          `db:"discount_percentage" json:"discount_percentage"`
+	Rating                 pgtype.Numeric `db:"rating" json:"rating"`
+	ReviewCount            int32          `db:"review_count" json:"review_count"`
+	TermsAndConditions     json.RawMessage         `db:"terms_and_conditions" json:"terms_and_conditions"`
+	ParentName             *string        `db:"parent_name" json:"parent_name"`
 }
 
 func (q *Queries) ListAllServicesWithParent(ctx context.Context) ([]ListAllServicesWithParentRow, error) {
@@ -151,6 +157,7 @@ func (q *Queries) ListAllServicesWithParent(ctx context.Context) ([]ListAllServi
 			&i.DiscountPercentage,
 			&i.Rating,
 			&i.ReviewCount,
+			&i.TermsAndConditions,
 			&i.ParentName,
 		); err != nil {
 			return nil, err
@@ -164,7 +171,7 @@ func (q *Queries) ListAllServicesWithParent(ctx context.Context) ([]ListAllServi
 }
 
 const listServiceCategories = `-- name: ListServiceCategories :many
-SELECT id, name, description, icon, created_at, parent_id, is_subcategory, image_url, price, discount_percentage, rating, review_count FROM services WHERE parent_id IS NULL ORDER BY name ASC
+SELECT id, name, description, icon, created_at, parent_id, is_subcategory, image_url, price, discount_percentage, rating, review_count, terms_and_conditions FROM services WHERE parent_id IS NULL ORDER BY name ASC
 `
 
 func (q *Queries) ListServiceCategories(ctx context.Context) ([]Service, error) {
@@ -189,6 +196,7 @@ func (q *Queries) ListServiceCategories(ctx context.Context) ([]Service, error) 
 			&i.DiscountPercentage,
 			&i.Rating,
 			&i.ReviewCount,
+			&i.TermsAndConditions,
 		); err != nil {
 			return nil, err
 		}
@@ -201,7 +209,7 @@ func (q *Queries) ListServiceCategories(ctx context.Context) ([]Service, error) 
 }
 
 const listServices = `-- name: ListServices :many
-SELECT id, name, description, icon, created_at, parent_id, is_subcategory, image_url, price, discount_percentage, rating, review_count FROM services ORDER BY name ASC
+SELECT id, name, description, icon, created_at, parent_id, is_subcategory, image_url, price, discount_percentage, rating, review_count, terms_and_conditions FROM services ORDER BY name ASC
 `
 
 func (q *Queries) ListServices(ctx context.Context) ([]Service, error) {
@@ -226,6 +234,7 @@ func (q *Queries) ListServices(ctx context.Context) ([]Service, error) {
 			&i.DiscountPercentage,
 			&i.Rating,
 			&i.ReviewCount,
+			&i.TermsAndConditions,
 		); err != nil {
 			return nil, err
 		}
@@ -238,7 +247,7 @@ func (q *Queries) ListServices(ctx context.Context) ([]Service, error) {
 }
 
 const listSubCategories = `-- name: ListSubCategories :many
-SELECT id, name, description, icon, created_at, parent_id, is_subcategory, image_url, price, discount_percentage, rating, review_count FROM services WHERE parent_id = $1 ORDER BY name ASC
+SELECT id, name, description, icon, created_at, parent_id, is_subcategory, image_url, price, discount_percentage, rating, review_count, terms_and_conditions FROM services WHERE parent_id = $1 ORDER BY name ASC
 `
 
 func (q *Queries) ListSubCategories(ctx context.Context, parentID pgtype.UUID) ([]Service, error) {
@@ -263,6 +272,7 @@ func (q *Queries) ListSubCategories(ctx context.Context, parentID pgtype.UUID) (
 			&i.DiscountPercentage,
 			&i.Rating,
 			&i.ReviewCount,
+			&i.TermsAndConditions,
 		); err != nil {
 			return nil, err
 		}
@@ -286,23 +296,25 @@ SET
     price          = COALESCE($8, price),
     discount_percentage = COALESCE($9, discount_percentage),
     rating         = COALESCE($10, rating),
-    review_count   = COALESCE($11, review_count)
+    review_count   = COALESCE($11, review_count),
+    terms_and_conditions = COALESCE($12, terms_and_conditions)
 WHERE id = $1
-RETURNING id, name, description, icon, created_at, parent_id, is_subcategory, image_url, price, discount_percentage, rating, review_count
+RETURNING id, name, description, icon, created_at, parent_id, is_subcategory, image_url, price, discount_percentage, rating, review_count, terms_and_conditions
 `
 
 type UpdateServiceParams struct {
-	ID                  uuid.UUID      `db:"id" json:"id"`
-	Name                *string        `db:"name" json:"name"`
-	Description         *string        `db:"description" json:"description"`
-	Icon                *string        `db:"icon" json:"icon"`
-	ParentID            pgtype.UUID    `db:"parent_id" json:"parent_id"`
-	IsSubcategory       *bool          `db:"is_subcategory" json:"is_subcategory"`
-	ImageUrl            *string        `db:"image_url" json:"image_url"`
-	Price               pgtype.Numeric `db:"price" json:"price"`
-	DiscountPercentage  *int32         `db:"discount_percentage" json:"discount_percentage"`
-	Rating              pgtype.Numeric `db:"rating" json:"rating"`
-	ReviewCount         *int32         `db:"review_count" json:"review_count"`
+	ID                     uuid.UUID      `db:"id" json:"id"`
+	Name                   *string        `db:"name" json:"name"`
+	Description            *string        `db:"description" json:"description"`
+	Icon                   *string        `db:"icon" json:"icon"`
+	ParentID               pgtype.UUID    `db:"parent_id" json:"parent_id"`
+	IsSubcategory          *bool          `db:"is_subcategory" json:"is_subcategory"`
+	ImageUrl               *string        `db:"image_url" json:"image_url"`
+	Price                  pgtype.Numeric `db:"price" json:"price"`
+	DiscountPercentage     *int32         `db:"discount_percentage" json:"discount_percentage"`
+	Rating                 pgtype.Numeric `db:"rating" json:"rating"`
+	ReviewCount            *int32         `db:"review_count" json:"review_count"`
+	TermsAndConditions     json.RawMessage         `db:"terms_and_conditions" json:"terms_and_conditions"`
 }
 
 func (q *Queries) UpdateService(ctx context.Context, arg UpdateServiceParams) (Service, error) {
@@ -318,6 +330,7 @@ func (q *Queries) UpdateService(ctx context.Context, arg UpdateServiceParams) (S
 		arg.DiscountPercentage,
 		arg.Rating,
 		arg.ReviewCount,
+		arg.TermsAndConditions,
 	)
 	var i Service
 	err := row.Scan(
@@ -333,6 +346,7 @@ func (q *Queries) UpdateService(ctx context.Context, arg UpdateServiceParams) (S
 		&i.DiscountPercentage,
 		&i.Rating,
 		&i.ReviewCount,
+		&i.TermsAndConditions,
 	)
 	return i, err
 }
@@ -344,18 +358,20 @@ SET
     discount_percentage  = COALESCE($3, discount_percentage),
     image_url            = COALESCE($4, image_url),
     rating               = COALESCE($5, rating),
-    review_count         = COALESCE($6, review_count)
+    review_count         = COALESCE($6, review_count),
+    terms_and_conditions = COALESCE($7, terms_and_conditions)
 WHERE id = $1
-RETURNING id, name, description, icon, created_at, parent_id, is_subcategory, image_url, price, discount_percentage, rating, review_count
+RETURNING id, name, description, icon, created_at, parent_id, is_subcategory, image_url, price, discount_percentage, rating, review_count, terms_and_conditions
 `
 
 type UpdateServicePricingParams struct {
-	ID                  uuid.UUID      `db:"id" json:"id"`
-	Price               pgtype.Numeric `db:"price" json:"price"`
-	DiscountPercentage  *int32         `db:"discount_percentage" json:"discount_percentage"`
-	ImageUrl            *string        `db:"image_url" json:"image_url"`
-	Rating              pgtype.Numeric `db:"rating" json:"rating"`
-	ReviewCount         *int32         `db:"review_count" json:"review_count"`
+	ID                     uuid.UUID      `db:"id" json:"id"`
+	Price                  pgtype.Numeric `db:"price" json:"price"`
+	DiscountPercentage     *int32         `db:"discount_percentage" json:"discount_percentage"`
+	ImageUrl               *string        `db:"image_url" json:"image_url"`
+	Rating                 pgtype.Numeric `db:"rating" json:"rating"`
+	ReviewCount            *int32         `db:"review_count" json:"review_count"`
+	TermsAndConditions     json.RawMessage         `db:"terms_and_conditions" json:"terms_and_conditions"`
 }
 
 func (q *Queries) UpdateServicePricing(ctx context.Context, arg UpdateServicePricingParams) (Service, error) {
@@ -366,6 +382,7 @@ func (q *Queries) UpdateServicePricing(ctx context.Context, arg UpdateServicePri
 		arg.ImageUrl,
 		arg.Rating,
 		arg.ReviewCount,
+		arg.TermsAndConditions,
 	)
 	var i Service
 	err := row.Scan(
@@ -381,12 +398,13 @@ func (q *Queries) UpdateServicePricing(ctx context.Context, arg UpdateServicePri
 		&i.DiscountPercentage,
 		&i.Rating,
 		&i.ReviewCount,
+		&i.TermsAndConditions,
 	)
 	return i, err
 }
 
 const listServicesByCategory = `-- name: ListServicesByCategory :many
-SELECT id, name, description, icon, created_at, parent_id, is_subcategory, image_url, price, discount_percentage, rating, review_count FROM services WHERE parent_id = $1 ORDER BY name ASC
+SELECT id, name, description, icon, created_at, parent_id, is_subcategory, image_url, price, discount_percentage, rating, review_count, terms_and_conditions FROM services WHERE parent_id = $1 ORDER BY name ASC
 `
 
 func (q *Queries) ListServicesByCategory(ctx context.Context, parentID pgtype.UUID) ([]Service, error) {
@@ -411,6 +429,7 @@ func (q *Queries) ListServicesByCategory(ctx context.Context, parentID pgtype.UU
 			&i.DiscountPercentage,
 			&i.Rating,
 			&i.ReviewCount,
+			&i.TermsAndConditions,
 		); err != nil {
 			return nil, err
 		}
@@ -425,7 +444,7 @@ func (q *Queries) ListServicesByCategory(ctx context.Context, parentID pgtype.UU
 const getCategoryWithCount = `-- name: GetCategoryWithCount :one
 SELECT
     s.id, s.name, s.description, s.icon, s.created_at, s.parent_id, s.is_subcategory,
-    s.image_url, s.price, s.discount_percentage, s.rating, s.review_count,
+    s.image_url, s.price, s.discount_percentage, s.rating, s.review_count, s.terms_and_conditions,
     (SELECT COUNT(*) FROM services WHERE parent_id = s.id) as sub_service_count
 FROM services s WHERE s.id = $1 AND s.parent_id IS NULL
 `
@@ -446,6 +465,7 @@ func (q *Queries) GetCategoryWithCount(ctx context.Context, id uuid.UUID) (Categ
 		&i.DiscountPercentage,
 		&i.Rating,
 		&i.ReviewCount,
+		&i.TermsAndConditions,
 		&i.SubServiceCount,
 	)
 	return i, err
@@ -454,7 +474,7 @@ func (q *Queries) GetCategoryWithCount(ctx context.Context, id uuid.UUID) (Categ
 const listCategoriesWithCounts = `-- name: ListCategoriesWithCounts :many
 SELECT
     s.id, s.name, s.description, s.icon, s.created_at, s.parent_id, s.is_subcategory,
-    s.image_url, s.price, s.discount_percentage, s.rating, s.review_count,
+    s.image_url, s.price, s.discount_percentage, s.rating, s.review_count, s.terms_and_conditions,
     (SELECT COUNT(*) FROM services WHERE parent_id = s.id) as sub_service_count
 FROM services s WHERE s.parent_id IS NULL ORDER BY s.name ASC
 `
@@ -481,6 +501,7 @@ func (q *Queries) ListCategoriesWithCounts(ctx context.Context) ([]CategoryWithC
 			&i.DiscountPercentage,
 			&i.Rating,
 			&i.ReviewCount,
+			&i.TermsAndConditions,
 			&i.SubServiceCount,
 		); err != nil {
 			return nil, err

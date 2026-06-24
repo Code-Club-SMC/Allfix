@@ -250,7 +250,7 @@ SELECT
     i.id,
     i.invoice_number,
     i.total,
-    i.vendor_commission,
+    i.platform_fee_percentage,
     i.status,
     i.created_at,
     r.request_number,
@@ -266,7 +266,7 @@ type GetVendorInvoicesRow struct {
 	ID               uuid.UUID      `db:"id" json:"id"`
 	InvoiceNumber    string         `db:"invoice_number" json:"invoice_number"`
 	Total            pgtype.Numeric `db:"total" json:"total"`
-	VendorCommission pgtype.Numeric `db:"vendor_commission" json:"vendor_commission"`
+	PlatformFeePercentage pgtype.Numeric `db:"platform_fee_percentage" json:"platform_fee_percentage"`
 	Status           string         `db:"status" json:"status"`
 	CreatedAt        time.Time      `db:"created_at" json:"created_at"`
 	RequestNumber    string         `db:"request_number" json:"request_number"`
@@ -286,7 +286,7 @@ func (q *Queries) GetVendorInvoices(ctx context.Context, vendorID pgtype.UUID) (
 			&i.ID,
 			&i.InvoiceNumber,
 			&i.Total,
-			&i.VendorCommission,
+			&i.PlatformFeePercentage,
 			&i.Status,
 			&i.CreatedAt,
 			&i.RequestNumber,
@@ -313,7 +313,7 @@ SELECT
     v.contact_email,
     v.notes,
     COALESCE(SUM(
-        CASE WHEN i.status = 'paid' THEN i.vendor_commission ELSE 0 END
+        CASE WHEN i.status = 'paid' THEN ROUND(i.total * i.platform_fee_percentage / 100, 2) ELSE 0 END
     ), 0)::numeric AS total_commissions,
     COUNT(CASE WHEN i.status = 'paid' THEN 1 END)::integer AS commission_count,
     COUNT(r.id)::integer AS jobs_count

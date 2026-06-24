@@ -1,4 +1,4 @@
-import { Star, ShoppingCart } from "lucide-react";
+import { Star, ShoppingCart, Check, X as XIcon } from "lucide-react";
 import type { Service } from "@/types/api";
 import { useCartStore } from "@/state/cart";
 
@@ -40,11 +40,9 @@ const DEFAULT_SERVICE_IMAGE = "https://images.unsplash.com/photo-1581578731548-c
 
 function getServiceImage(serviceName: string): string {
 	const key = serviceName.toLowerCase().trim();
-	// Try exact match first
 	if (PLACEHOLDER_IMAGES[key]) {
 		return PLACEHOLDER_IMAGES[key];
 	}
-	// Try partial match
 	for (const [partial, url] of Object.entries(PLACEHOLDER_IMAGES)) {
 		if (key.includes(partial) || partial.includes(key)) {
 			return url;
@@ -71,6 +69,12 @@ export function ServiceCard({ service, categoryName, categoryId }: ServiceCardPr
 
 	const imageUrl = service.image_url || getServiceImage(service.name);
 
+	const tc = service.terms_and_conditions || {
+		includes: [],
+		does_not_include: [],
+		liability_disclaimer: "",
+	};
+
 	const handleAddToCart = () => {
 		if (isInCart) return;
 		addItem({
@@ -81,6 +85,7 @@ export function ServiceCard({ service, categoryName, categoryId }: ServiceCardPr
 			price,
 			discountPercentage,
 		});
+		useCartStore.setState({ isOpen: true });
 	};
 
 	return (
@@ -148,17 +153,49 @@ export function ServiceCard({ service, categoryName, categoryId }: ServiceCardPr
 				</div>
 
 				{/* Terms & Conditions */}
-				<div className="mt-3 border-t border-border/30 pt-3">
-					<details className="group/terms">
-						<summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">
-							Terms & Conditions
-						</summary>
-						<p className="mt-2 text-xs text-muted-foreground">
-							Standard service terms apply. Pricing may vary based on job complexity.
-							Additional charges may apply for parts and materials.
-						</p>
-					</details>
-				</div>
+				{(tc?.includes?.length > 0 || tc?.does_not_include?.length > 0 || tc?.liability_disclaimer) && (
+					<div className="mt-3 border-t border-border/30 pt-3">
+						<details className="group/terms">
+							<summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">
+								Terms & Conditions
+							</summary>
+							<div className="mt-3 space-y-3">
+								{(tc?.includes?.length || 0) > 0 && (
+									<div>
+										<div className="text-[11px] font-semibold text-green-700 uppercase tracking-wide">Includes</div>
+										<ul className="mt-1.5 space-y-1">
+											{tc.includes.map((item, i) => (
+												<li key={i} className="flex items-start gap-2 text-xs text-foreground">
+													<Check className="h-3.5 w-3.5 text-green-600 flex-shrink-0 mt-0.5" />
+													<span>{item}</span>
+												</li>
+											))}
+										</ul>
+									</div>
+								)}
+								{(tc?.does_not_include?.length || 0) > 0 && (
+									<div>
+										<div className="text-[11px] font-semibold text-red-600 uppercase tracking-wide">Does Not Include</div>
+										<ul className="mt-1.5 space-y-1">
+											{tc.does_not_include.map((item, i) => (
+												<li key={i} className="flex items-start gap-2 text-xs text-foreground">
+													<XIcon className="h-3.5 w-3.5 text-red-500 flex-shrink-0 mt-0.5" />
+													<span>{item}</span>
+												</li>
+											))}
+										</ul>
+									</div>
+								)}
+								{tc?.liability_disclaimer && (
+									<div className="border-t border-border/30 pt-2">
+										<div className="text-[11px] font-semibold text-red-600 uppercase tracking-wide">Liability Disclaimer</div>
+										<p className="mt-1 text-xs text-muted-foreground">{tc.liability_disclaimer}</p>
+									</div>
+								)}
+							</div>
+						</details>
+					</div>
+				)}
 			</div>
 		</div>
 	);

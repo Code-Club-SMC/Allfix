@@ -1,4 +1,4 @@
-import { AlertCircle, AlertTriangle, Loader2, Pencil, Plus, Trash2, X, Upload } from "lucide-react";
+import { AlertCircle, AlertTriangle, Loader2, Pencil, Plus, Trash2, X, Upload, Check, Minus } from "lucide-react";
 import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { Button, Field, TextArea, TextInput } from "@/components/cb/Form";
@@ -12,6 +12,7 @@ import {
 } from "@/hooks/useServices";
 import { useClearData } from "@/hooks/useAdmin";
 import { apiFetch } from "@/lib/api";
+import type { TermsAndConditions } from "@/types/api";
 
 const blankForm = () => ({
 	name: "",
@@ -20,6 +21,12 @@ const blankForm = () => ({
 	isSubcategory: false,
 	imageUrl: "",
 	price: "",
+	discountPercentage: "",
+	termsAndConditions: {
+		includes: [] as string[],
+		does_not_include: [] as string[],
+		liability_disclaimer: "",
+	} as TermsAndConditions,
 });
 
 const Settings = () => {
@@ -44,6 +51,9 @@ const Settings = () => {
 	const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
+	const [newInclude, setNewInclude] = useState("");
+	const [newExclude, setNewExclude] = useState("");
+
 	const isSaving = creating || updating;
 	const saveError = (createError || updateError) as Error | null;
 	const serviceList = (services || []) as any[];
@@ -53,9 +63,25 @@ const Settings = () => {
 		setForm(blankForm());
 		setEditId(null);
 		setShowAdd(true);
+		setNewInclude("");
+		setNewExclude("");
 	};
 
 	const openEdit = (s: any) => {
+		let tc: TermsAndConditions = {
+			includes: [],
+			does_not_include: [],
+			liability_disclaimer: "",
+		};
+		if (s.terms_and_conditions) {
+			try {
+				tc = typeof s.terms_and_conditions === "string"
+					? JSON.parse(s.terms_and_conditions)
+					: s.terms_and_conditions;
+			} catch {
+				// ignore parse errors
+			}
+		}
 		setForm({
 			name: s.name,
 			description: s.description,
@@ -63,15 +89,21 @@ const Settings = () => {
 			isSubcategory: s.is_subcategory || false,
 			imageUrl: s.image_url || "",
 			price: s.price || "",
+			discountPercentage: s.discount_percentage ? String(s.discount_percentage) : "",
+			termsAndConditions: tc,
 		});
 		setEditId(s.id);
 		setShowAdd(true);
+		setNewInclude("");
+		setNewExclude("");
 	};
 
 	const closeForm = () => {
 		setShowAdd(false);
 		setEditId(null);
 		setForm(blankForm());
+		setNewInclude("");
+		setNewExclude("");
 	};
 
 	const handleSave = () => {
@@ -83,6 +115,8 @@ const Settings = () => {
 			isSubcategory: !!form.parentId,
 			imageUrl: form.imageUrl || null,
 			price: form.price ? String(form.price) : null,
+			discountPercentage: form.discountPercentage ? parseInt(form.discountPercentage) : 0,
+			termsAndConditions: form.termsAndConditions,
 		};
 		if (editId) {
 			updateService({ id: editId, ...payload }, { onSuccess: closeForm });
@@ -93,6 +127,50 @@ const Settings = () => {
 
 	const handleDelete = (id: string) => {
 		deleteService(id, { onSuccess: () => setDeleteConfirm(null) });
+	};
+
+	const addInclude = () => {
+		if (!newInclude.trim()) return;
+		setForm((p) => ({
+			...p,
+			termsAndConditions: {
+				...p.termsAndConditions,
+				includes: [...p.termsAndConditions.includes, newInclude.trim()],
+			},
+		}));
+		setNewInclude("");
+	};
+
+	const removeInclude = (index: number) => {
+		setForm((p) => ({
+			...p,
+			termsAndConditions: {
+				...p.termsAndConditions,
+				includes: p.termsAndConditions.includes.filter((_, i) => i !== index),
+			},
+		}));
+	};
+
+	const addExclude = () => {
+		if (!newExclude.trim()) return;
+		setForm((p) => ({
+			...p,
+			termsAndConditions: {
+				...p.termsAndConditions,
+				does_not_include: [...p.termsAndConditions.does_not_include, newExclude.trim()],
+			},
+		}));
+		setNewExclude("");
+	};
+
+	const removeExclude = (index: number) => {
+		setForm((p) => ({
+			...p,
+			termsAndConditions: {
+				...p.termsAndConditions,
+				does_not_include: p.termsAndConditions.does_not_include.filter((_, i) => i !== index),
+			},
+		}));
 	};
 
 	return (
@@ -188,6 +266,21 @@ const Settings = () => {
 									Leave empty if pricing varies
 								</p>
 							</Field>
+							<Field label="Discount (%)">
+								<TextInput
+									type="number"
+									value={form.discountPercentage}
+									onChange={(e) =>
+										setForm((p) => ({ ...p, discountPercentage: e.target.value }))
+									}
+									placeholder="e.g. 20"
+									min="0"
+									max="100"
+								/>
+								<p className="mt-1 text-[11px] text-muted-foreground">
+									Show fake discount on customer view (0-100)
+								</p>
+							</Field>
 							<Field label="Description" className="sm:col-span-2">
 								<TextArea
 									rows={2}
@@ -206,6 +299,10 @@ const Settings = () => {
 												src={form.imageUrl}
 												alt="Preview"
 												className="h-full w-full object-cover"
+												onError={(e) => {
+													const target = e.target as HTMLImageElement;
+													target.style.display = "none";
+												}}
 											/>
 											<button
 												type="button"
@@ -260,6 +357,103 @@ const Settings = () => {
 									</p>
 								</div>
 							</Field>
+
+							{/* Terms & Conditions Section */}
+							<div className="sm:col-span-2 space-y-4 border-t border-border pt-4 mt-2">
+								<h4 className="text-[13px] font-semibold text-foreground">Terms & Conditions</h4>
+
+								{/* Includes */}
+								<div>
+									<label className="text-[12px] font-medium text-green-700">INCLUDES</label>
+									<div className="mt-2 space-y-2">
+										{form.termsAndConditions.includes.map((item, index) => (
+											<div key={index} className="flex items-center gap-2">
+												<Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+												<span className="text-[13px] text-foreground flex-1">{item}</span>
+												<button
+													type="button"
+													onClick={() => removeInclude(index)}
+													className="text-muted-foreground hover:text-danger"
+												>
+													<X className="h-3.5 w-3.5" />
+												</button>
+											</div>
+										))}
+										<div className="flex gap-2">
+											<TextInput
+												value={newInclude}
+												onChange={(e) => setNewInclude(e.target.value)}
+												placeholder="Add item included in service..."
+												onKeyDown={(e) => {
+													if (e.key === "Enter") {
+														e.preventDefault();
+														addInclude();
+													}
+												}}
+											/>
+											<Button size="sm" variant="outline" onClick={addInclude} type="button">
+												<Plus className="h-3.5 w-3.5" />
+											</Button>
+										</div>
+									</div>
+								</div>
+
+								{/* Does Not Include */}
+								<div>
+									<label className="text-[12px] font-medium text-red-600">DOES NOT INCLUDE</label>
+									<div className="mt-2 space-y-2">
+										{form.termsAndConditions.does_not_include.map((item, index) => (
+											<div key={index} className="flex items-center gap-2">
+												<Minus className="h-4 w-4 text-red-500 flex-shrink-0" />
+												<span className="text-[13px] text-foreground flex-1">{item}</span>
+												<button
+													type="button"
+													onClick={() => removeExclude(index)}
+													className="text-muted-foreground hover:text-danger"
+												>
+													<X className="h-3.5 w-3.5" />
+												</button>
+											</div>
+										))}
+										<div className="flex gap-2">
+											<TextInput
+												value={newExclude}
+												onChange={(e) => setNewExclude(e.target.value)}
+												placeholder="Add item NOT included in service..."
+												onKeyDown={(e) => {
+													if (e.key === "Enter") {
+														e.preventDefault();
+														addExclude();
+													}
+												}}
+											/>
+											<Button size="sm" variant="outline" onClick={addExclude} type="button">
+												<Plus className="h-3.5 w-3.5" />
+											</Button>
+										</div>
+									</div>
+								</div>
+
+								{/* Liability Disclaimer */}
+								<div>
+									<label className="text-[12px] font-medium text-foreground">LIABILITY DISCLAIMER</label>
+									<TextArea
+										rows={3}
+										value={form.termsAndConditions.liability_disclaimer}
+										onChange={(e) =>
+											setForm((p) => ({
+												...p,
+												termsAndConditions: {
+													...p.termsAndConditions,
+													liability_disclaimer: e.target.value,
+												},
+											}))
+										}
+										placeholder="We are not liable for any damage or malfunction to your equipment or property..."
+										className="mt-2"
+									/>
+								</div>
+							</div>
 						</div>
 
 						<div className="mt-4 flex items-center justify-end gap-2">
@@ -299,6 +493,7 @@ const Settings = () => {
 								<th className="cb-label px-5 py-2.5">Name</th>
 								<th className="cb-label px-5 py-2.5">Description</th>
 								<th className="cb-label px-5 py-2.5">Price</th>
+								<th className="cb-label px-5 py-2.5">Discount</th>
 								<th className="cb-label px-5 py-2.5">Type</th>
 								<th className="cb-label px-5 py-2.5 text-right">Actions</th>
 							</tr>
@@ -323,6 +518,15 @@ const Settings = () => {
 												{s.price ? (
 													<span className="font-medium text-foreground">
 														Rs {parseFloat(s.price).toLocaleString()}
+													</span>
+												) : (
+													<span className="text-muted-foreground">—</span>
+												)}
+											</td>
+											<td className="px-5 py-3">
+												{s.discount_percentage > 0 ? (
+													<span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-700">
+														{s.discount_percentage}% OFF
 													</span>
 												) : (
 													<span className="text-muted-foreground">—</span>
@@ -381,7 +585,7 @@ const Settings = () => {
 							{serviceList.length === 0 && (
 								<tr>
 									<td
-										colSpan={5}
+										colSpan={6}
 										className="py-12 text-center text-[13px] text-muted-foreground"
 									>
 										No services yet. Start by creating a category, then add services under it.
@@ -393,7 +597,7 @@ const Settings = () => {
 				)}
 			</Card>
 
-			{/* ── Data Management ── */}
+			{/* ─ Data Management ── */}
 			<Card className="mt-6">
 				<div className="px-5 py-4">
 					<h2 className="text-[14px] font-semibold">Data Management</h2>

@@ -6,70 +6,63 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// TestVendorCommissionCalculation verifies the vendor commission calculation logic
-func TestVendorCommissionCalculation(t *testing.T) {
+// TestPlatformFeeCalculation verifies the platform fee calculation logic
+func TestPlatformFeeCalculation(t *testing.T) {
 	tests := []struct {
-		name               string
-		total              string
-		commissionPct      string
-		expectedCommission string
+		name          string
+		total         string
+		feePct        string
+		expectedFee   string
+		expectedPayout string
 	}{
 		{
-			name:               "15.5% commission on 50000",
-			total:              "50000",
-			commissionPct:      "15.5",
-			expectedCommission: "7750.00",
+			name:           "15.5% platform fee on 50000",
+			total:          "50000",
+			feePct:         "15.5",
+			expectedFee:    "7750.00",
+			expectedPayout: "42250.00",
 		},
 		{
-			name:               "10% commission on 100000",
-			total:              "100000",
-			commissionPct:      "10",
-			expectedCommission: "10000.00",
+			name:           "10% platform fee on 100000",
+			total:          "100000",
+			feePct:         "10",
+			expectedFee:    "10000.00",
+			expectedPayout: "90000.00",
 		},
 		{
-			name:               "0% commission",
-			total:              "50000",
-			commissionPct:      "0",
-			expectedCommission: "0.00",
+			name:           "0% platform fee",
+			total:          "50000",
+			feePct:         "0",
+			expectedFee:    "0.00",
+			expectedPayout: "50000.00",
 		},
 		{
-			name:               "25.75% commission on 80000",
-			total:              "80000",
-			commissionPct:      "25.75",
-			expectedCommission: "20600.00",
+			name:           "25.75% platform fee on 80000",
+			total:          "80000",
+			feePct:         "25.75",
+			expectedFee:    "20600.00",
+			expectedPayout: "59400.00",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Convert strings to pgtype.Numeric
 			totalNumeric := stringToPgNumeric(&tt.total)
-			commissionPctNumeric := stringToPgNumeric(&tt.commissionPct)
+			feePctNumeric := stringToPgNumeric(&tt.feePct)
 
-			// Simulate the calculation that would happen in the database
-			// ROUND(total * (commission_percentage / 100), 2)
-			if !totalNumeric.Valid || !commissionPctNumeric.Valid {
+			if !totalNumeric.Valid || !feePctNumeric.Valid {
 				t.Fatal("Failed to convert input values to numeric")
-			}
-
-			// For this test, we're just verifying the helper functions work correctly
-			// The actual calculation happens in the SQL query
-			if !totalNumeric.Valid {
-				t.Errorf("Expected valid total numeric, got invalid")
-			}
-			if !commissionPctNumeric.Valid {
-				t.Errorf("Expected valid commission percentage numeric, got invalid")
 			}
 		})
 	}
 }
 
-// TestVendorCommissionDefaultValue verifies that vendor commission defaults to invalid (NULL) when not set
-func TestVendorCommissionDefaultValue(t *testing.T) {
-	commission := pgtype.Numeric{Valid: false}
-	
-	if commission.Valid {
-		t.Errorf("Expected vendor commission to be invalid by default, got valid")
+// TestPlatformFeeDefaultValue verifies that platform fee defaults to invalid (NULL) when not set
+func TestPlatformFeeDefaultValue(t *testing.T) {
+	fee := pgtype.Numeric{Valid: false}
+
+	if fee.Valid {
+		t.Errorf("Expected platform fee to be invalid by default, got valid")
 	}
 }
 
@@ -107,102 +100,109 @@ func TestStringToPgNumericOrZero(t *testing.T) {
 	}
 }
 
-// ─── Commission Calculation Tests ─────────────────────────────────────────────
+// ─── Platform Fee Calculation Tests ─────────────────────────────────────────────
 
-// TestCommissionCalculationLogic verifies the commission calculation formula:
-// vendor_commission = ROUND(invoice_total * (commission_percentage / 100), 2)
-func TestCommissionCalculationLogic(t *testing.T) {
+// TestPlatformFeeCalculationLogic verifies the platform fee calculation formula:
+// platform_fee = ROUND(invoice_total * (platform_fee_percentage / 100), 2)
+func TestPlatformFeeCalculationLogic(t *testing.T) {
 	tests := []struct {
-		name               string
-		invoiceTotal       float64
-		commissionPct      float64
-		expectedCommission float64
+		name          string
+		invoiceTotal  float64
+		feePct        float64
+		expectedFee   float64
+		expectedPayout float64
 	}{
 		{
-			name:               "15.5% of 50000 = 7750.00",
-			invoiceTotal:       50000,
-			commissionPct:      15.5,
-			expectedCommission: 7750.00,
+			name:           "15.5% of 50000 = 7750.00",
+			invoiceTotal:   50000,
+			feePct:         15.5,
+			expectedFee:    7750.00,
+			expectedPayout: 42250.00,
 		},
 		{
-			name:               "10% of 100000 = 10000.00",
-			invoiceTotal:       100000,
-			commissionPct:      10,
-			expectedCommission: 10000.00,
+			name:           "10% of 100000 = 10000.00",
+			invoiceTotal:   100000,
+			feePct:         10,
+			expectedFee:    10000.00,
+			expectedPayout: 90000.00,
 		},
 		{
-			name:               "0% commission = 0.00",
-			invoiceTotal:       50000,
-			commissionPct:      0,
-			expectedCommission: 0.00,
+			name:           "0% platform fee = 0.00",
+			invoiceTotal:   50000,
+			feePct:         0,
+			expectedFee:    0.00,
+			expectedPayout: 50000.00,
 		},
 		{
-			name:               "100% commission = full total",
-			invoiceTotal:       50000,
-			commissionPct:      100,
-			expectedCommission: 50000.00,
+			name:           "100% platform fee = full total",
+			invoiceTotal:   50000,
+			feePct:         100,
+			expectedFee:    50000.00,
+			expectedPayout: 0.00,
 		},
 		{
-			name:               "25.75% of 80000 = 20600.00",
-			invoiceTotal:       80000,
-			commissionPct:      25.75,
-			expectedCommission: 20600.00,
+			name:           "25.75% of 80000 = 20600.00",
+			invoiceTotal:   80000,
+			feePct:         25.75,
+			expectedFee:    20600.00,
+			expectedPayout: 59400.00,
 		},
 		{
-			name:               "rounding: 33.33% of 100 = 33.33",
-			invoiceTotal:       100,
-			commissionPct:      33.33,
-			expectedCommission: 33.33,
+			name:           "rounding: 33.33% of 100 = 33.33",
+			invoiceTotal:   100,
+			feePct:         33.33,
+			expectedFee:    33.33,
+			expectedPayout: 66.67,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Calculate commission: total * (pct / 100), rounded to 2 decimal places
-			raw := tt.invoiceTotal * (tt.commissionPct / 100)
-			// Round to 2 decimal places
+			raw := tt.invoiceTotal * (tt.feePct / 100)
 			rounded := float64(int(raw*100+0.5)) / 100
-			if rounded != tt.expectedCommission {
-				t.Errorf("commission(%v, %v%%) = %v, want %v", tt.invoiceTotal, tt.commissionPct, rounded, tt.expectedCommission)
+			if rounded != tt.expectedFee {
+				t.Errorf("platformFee(%v, %v%%) = %v, want %v", tt.invoiceTotal, tt.feePct, rounded, tt.expectedFee)
+			}
+			payout := tt.invoiceTotal - rounded
+			if payout != tt.expectedPayout {
+				t.Errorf("vendorPayout(%v - %v) = %v, want %v", tt.invoiceTotal, rounded, payout, tt.expectedPayout)
 			}
 		})
 	}
 }
 
-// TestNetRevenueCalculation verifies net revenue = total - vendor_commission
-func TestNetRevenueCalculation(t *testing.T) {
+// TestVendorPayoutCalculation verifies vendor payout = total - platform fee
+func TestVendorPayoutCalculation(t *testing.T) {
 	tests := []struct {
 		name               string
 		total              float64
-		vendorCommission   float64
-		expectedNetRevenue float64
+		platformFee        float64
+		expectedVendorPayout float64
 	}{
-		{"50000 total, 7750 commission = 42250 net", 50000, 7750, 42250},
-		{"100000 total, 10000 commission = 90000 net", 100000, 10000, 90000},
-		{"50000 total, 0 commission = 50000 net", 50000, 0, 50000},
+		{"50000 total, 7750 platform fee = 42250 payout", 50000, 7750, 42250},
+		{"100000 total, 10000 platform fee = 90000 payout", 100000, 10000, 90000},
+		{"50000 total, 0 platform fee = 50000 payout", 50000, 0, 50000},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			netRevenue := tt.total - tt.vendorCommission
-			if netRevenue != tt.expectedNetRevenue {
-				t.Errorf("netRevenue(%v - %v) = %v, want %v", tt.total, tt.vendorCommission, netRevenue, tt.expectedNetRevenue)
+			vendorPayout := tt.total - tt.platformFee
+			if vendorPayout != tt.expectedVendorPayout {
+				t.Errorf("vendorPayout(%v - %v) = %v, want %v", tt.total, tt.platformFee, vendorPayout, tt.expectedVendorPayout)
 			}
 		})
 	}
 }
 
-// TestExpenseCategoryForVendorCommission verifies the expense category is "vendor_commission"
-func TestExpenseCategoryForVendorCommission(t *testing.T) {
-	expectedCategory := "vendor_commission"
-	
-	// Verify the category string matches what the handler uses
-	if expectedCategory != "vendor_commission" {
-		t.Errorf("Expected expense category to be 'vendor_commission', got %q", expectedCategory)
+// TestExpenseCategoryForPlatformFee verifies the expense category is "platform_fee"
+func TestExpenseCategoryForPlatformFee(t *testing.T) {
+	expectedCategory := "platform_fee"
+
+	if expectedCategory != "platform_fee" {
+		t.Errorf("Expected expense category to be 'platform_fee', got %q", expectedCategory)
 	}
-	
-	// Verify it's a valid category (matches the CHECK constraint)
-	validCategories := []string{"materials", "tools", "fuel", "utilities", "salary", "vendor_commission", "miscellaneous"}
+
+	validCategories := []string{"materials", "tools", "fuel", "utilities", "salary", "platform_fee", "miscellaneous"}
 	found := false
 	for _, c := range validCategories {
 		if c == expectedCategory {

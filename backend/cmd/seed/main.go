@@ -171,7 +171,7 @@ func main() {
 
 		var invoiceID string
 		err := pool.QueryRow(ctx,
-			`INSERT INTO invoices (invoice_number, request_id, client_id, client_name, client_address, client_phone, service_name, subtotal, total, status, vendor_commission) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
+			`INSERT INTO invoices (invoice_number, request_id, client_id, client_name, client_address, client_phone, service_name, subtotal, total, status, platform_fee_percentage) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
 			invNum, reqIDs[i], clientID, clientName, clientAddr, clientPhone, serviceName, fmt.Sprintf("%.2f", subtotal), fmt.Sprintf("%.2f", totalAmt), invStatus, vendorCommission,
 		).Scan(&invoiceID)
 		if err != nil {

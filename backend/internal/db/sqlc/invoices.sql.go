@@ -51,9 +51,9 @@ func (q *Queries) CountRequestsWithoutInvoice(ctx context.Context) (int64, error
 const createInvoice = `-- name: CreateInvoice :one
 INSERT INTO invoices (
     invoice_number, request_id, client_id, client_name, client_address, client_phone,
-    service_name, service_description, subtotal, total, notes, status, vendor_commission
+    service_name, service_description, subtotal, total, notes, status, platform_fee_percentage
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-RETURNING id, invoice_number, request_id, client_id, client_name, client_address, client_phone, service_name, service_description, discount, subtotal, total, notes, status, created_at, updated_at, vendor_commission
+RETURNING id, invoice_number, request_id, client_id, client_name, client_address, client_phone, service_name, service_description, discount, subtotal, total, notes, status, created_at, updated_at, platform_fee_percentage
 `
 
 type CreateInvoiceParams struct {
@@ -69,7 +69,7 @@ type CreateInvoiceParams struct {
 	Total              pgtype.Numeric `db:"total" json:"total"`
 	Notes              *string        `db:"notes" json:"notes"`
 	Status             string         `db:"status" json:"status"`
-	VendorCommission   pgtype.Numeric `db:"vendor_commission" json:"vendor_commission"`
+	PlatformFeePercentage   pgtype.Numeric `db:"platform_fee_percentage" json:"platform_fee_percentage"`
 }
 
 func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (Invoice, error) {
@@ -86,7 +86,7 @@ func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (I
 		arg.Total,
 		arg.Notes,
 		arg.Status,
-		arg.VendorCommission,
+		arg.PlatformFeePercentage,
 	)
 	var i Invoice
 	err := row.Scan(
@@ -106,7 +106,7 @@ func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (I
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.VendorCommission,
+		&i.PlatformFeePercentage,
 	)
 	return i, err
 }
@@ -207,7 +207,7 @@ func (q *Queries) DeleteLineItemsByInvoice(ctx context.Context, invoiceID uuid.U
 }
 
 const getInvoiceByID = `-- name: GetInvoiceByID :one
-SELECT id, invoice_number, request_id, client_id, client_name, client_address, client_phone, service_name, service_description, discount, subtotal, total, notes, status, created_at, updated_at, vendor_commission FROM invoices WHERE id = $1
+SELECT id, invoice_number, request_id, client_id, client_name, client_address, client_phone, service_name, service_description, discount, subtotal, total, notes, status, created_at, updated_at, platform_fee_percentage FROM invoices WHERE id = $1
 `
 
 func (q *Queries) GetInvoiceByID(ctx context.Context, id uuid.UUID) (Invoice, error) {
@@ -230,7 +230,7 @@ func (q *Queries) GetInvoiceByID(ctx context.Context, id uuid.UUID) (Invoice, er
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.VendorCommission,
+		&i.PlatformFeePercentage,
 	)
 	return i, err
 }
@@ -343,7 +343,7 @@ func (q *Queries) ListInvoiceCommissions(ctx context.Context, invoiceID uuid.UUI
 }
 
 const listInvoices = `-- name: ListInvoices :many
-SELECT i.id, i.invoice_number, i.request_id, i.client_id, i.client_name, i.client_address, i.client_phone, i.service_name, i.service_description, i.discount, i.subtotal, i.total, i.notes, i.status, i.created_at, i.updated_at, i.vendor_commission, u.name AS client_user_name
+SELECT i.id, i.invoice_number, i.request_id, i.client_id, i.client_name, i.client_address, i.client_phone, i.service_name, i.service_description, i.discount, i.subtotal, i.total, i.notes, i.status, i.created_at, i.updated_at, i.platform_fee_percentage, u.name AS client_user_name
 FROM invoices i
 JOIN users u ON u.id = i.client_id
 WHERE ($1::text IS NULL OR $1 = '' OR i.status = $1)
@@ -378,7 +378,7 @@ type ListInvoicesRow struct {
 	Status             string         `db:"status" json:"status"`
 	CreatedAt          time.Time      `db:"created_at" json:"created_at"`
 	UpdatedAt          time.Time      `db:"updated_at" json:"updated_at"`
-	VendorCommission   pgtype.Numeric `db:"vendor_commission" json:"vendor_commission"`
+	PlatformFeePercentage   pgtype.Numeric `db:"platform_fee_percentage" json:"platform_fee_percentage"`
 	ClientUserName     string         `db:"client_user_name" json:"client_user_name"`
 }
 
@@ -414,7 +414,7 @@ func (q *Queries) ListInvoices(ctx context.Context, arg ListInvoicesParams) ([]L
 			&i.Status,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.VendorCommission,
+			&i.PlatformFeePercentage,
 			&i.ClientUserName,
 		); err != nil {
 			return nil, err
@@ -572,10 +572,10 @@ SET
     total               = COALESCE($8, total),
     notes               = COALESCE($9, notes),
     status              = COALESCE($10, status),
-    vendor_commission   = COALESCE($11, vendor_commission),
+    platform_fee_percentage   = COALESCE($11, platform_fee_percentage),
     updated_at          = NOW()
 WHERE id = $1
-RETURNING id, invoice_number, request_id, client_id, client_name, client_address, client_phone, service_name, service_description, discount, subtotal, total, notes, status, created_at, updated_at, vendor_commission
+RETURNING id, invoice_number, request_id, client_id, client_name, client_address, client_phone, service_name, service_description, discount, subtotal, total, notes, status, created_at, updated_at, platform_fee_percentage
 `
 
 type UpdateInvoiceParams struct {
@@ -589,7 +589,7 @@ type UpdateInvoiceParams struct {
 	Total              pgtype.Numeric `db:"total" json:"total"`
 	Notes              *string        `db:"notes" json:"notes"`
 	Status             *string        `db:"status" json:"status"`
-	VendorCommission   pgtype.Numeric `db:"vendor_commission" json:"vendor_commission"`
+	PlatformFeePercentage   pgtype.Numeric `db:"platform_fee_percentage" json:"platform_fee_percentage"`
 }
 
 func (q *Queries) UpdateInvoice(ctx context.Context, arg UpdateInvoiceParams) (Invoice, error) {
@@ -604,7 +604,7 @@ func (q *Queries) UpdateInvoice(ctx context.Context, arg UpdateInvoiceParams) (I
 		arg.Total,
 		arg.Notes,
 		arg.Status,
-		arg.VendorCommission,
+		arg.PlatformFeePercentage,
 	)
 	var i Invoice
 	err := row.Scan(
@@ -624,7 +624,7 @@ func (q *Queries) UpdateInvoice(ctx context.Context, arg UpdateInvoiceParams) (I
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.VendorCommission,
+		&i.PlatformFeePercentage,
 	)
 	return i, err
 }

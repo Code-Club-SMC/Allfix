@@ -5,6 +5,7 @@
 package db
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -96,7 +97,7 @@ type Invoice struct {
 	Status             string         `db:"status" json:"status"`
 	CreatedAt          time.Time      `db:"created_at" json:"created_at"`
 	UpdatedAt          time.Time      `db:"updated_at" json:"updated_at"`
-	VendorCommission   pgtype.Numeric `db:"vendor_commission" json:"vendor_commission"`
+	PlatformFeePercentage pgtype.Numeric `db:"platform_fee_percentage" json:"platform_fee_percentage"`
 }
 
 type InvoiceCommission struct {
@@ -164,18 +165,19 @@ type SalaryPayment struct {
 }
 
 type Service struct {
-	ID                  uuid.UUID      `db:"id" json:"id"`
-	Name                string         `db:"name" json:"name"`
-	Description         string         `db:"description" json:"description"`
-	Icon                string         `db:"icon" json:"icon"`
-	CreatedAt           time.Time      `db:"created_at" json:"created_at"`
-	ParentID            pgtype.UUID    `db:"parent_id" json:"parent_id"`
-	IsSubcategory       bool           `db:"is_subcategory" json:"is_subcategory"`
-	ImageUrl            *string        `db:"image_url" json:"image_url"`
-	Price               pgtype.Numeric `db:"price" json:"price"`
-	DiscountPercentage  int32          `db:"discount_percentage" json:"discount_percentage"`
-	Rating              pgtype.Numeric `db:"rating" json:"rating"`
-	ReviewCount         int32          `db:"review_count" json:"review_count"`
+	ID                     uuid.UUID        `db:"id" json:"id"`
+	Name                   string           `db:"name" json:"name"`
+	Description            string           `db:"description" json:"description"`
+	Icon                   string           `db:"icon" json:"icon"`
+	CreatedAt              time.Time        `db:"created_at" json:"created_at"`
+	ParentID               pgtype.UUID      `db:"parent_id" json:"parent_id"`
+	IsSubcategory          bool             `db:"is_subcategory" json:"is_subcategory"`
+	ImageUrl               *string          `db:"image_url" json:"image_url"`
+	Price                  pgtype.Numeric   `db:"price" json:"price"`
+	DiscountPercentage     int32            `db:"discount_percentage" json:"discount_percentage"`
+	Rating                 pgtype.Numeric   `db:"rating" json:"rating"`
+	ReviewCount            int32            `db:"review_count" json:"review_count"`
+	TermsAndConditions     json.RawMessage  `db:"terms_and_conditions" json:"terms_and_conditions"`
 }
 
 type ServiceRequest struct {
@@ -284,17 +286,18 @@ type UploadedFile struct {
 }
 
 type CategoryWithCount struct {
-	ID                  uuid.UUID      `db:"id" json:"id"`
-	Name                string         `db:"name" json:"name"`
-	Description         string         `db:"description" json:"description"`
-	Icon                string         `db:"icon" json:"icon"`
-	CreatedAt           time.Time      `db:"created_at" json:"created_at"`
-	ParentID            pgtype.UUID    `db:"parent_id" json:"parent_id"`
-	IsSubcategory       bool           `db:"is_subcategory" json:"is_subcategory"`
-	ImageUrl            *string        `db:"image_url" json:"image_url"`
-	Price               pgtype.Numeric `db:"price" json:"price"`
-	DiscountPercentage  int32          `db:"discount_percentage" json:"discount_percentage"`
-	Rating              pgtype.Numeric `db:"rating" json:"rating"`
-	ReviewCount         int32          `db:"review_count" json:"review_count"`
-	SubServiceCount     int64          `db:"sub_service_count" json:"sub_service_count"`
+	ID                     uuid.UUID        `db:"id" json:"id"`
+	Name                   string           `db:"name" json:"name"`
+	Description            string           `db:"description" json:"description"`
+	Icon                   string           `db:"icon" json:"icon"`
+	CreatedAt              time.Time        `db:"created_at" json:"created_at"`
+	ParentID               pgtype.UUID      `db:"parent_id" json:"parent_id"`
+	IsSubcategory          bool             `db:"is_subcategory" json:"is_subcategory"`
+	ImageUrl               *string          `db:"image_url" json:"image_url"`
+	Price                  pgtype.Numeric   `db:"price" json:"price"`
+	DiscountPercentage     int32            `db:"discount_percentage" json:"discount_percentage"`
+	Rating                 pgtype.Numeric   `db:"rating" json:"rating"`
+	ReviewCount            int32            `db:"review_count" json:"review_count"`
+	TermsAndConditions     json.RawMessage  `db:"terms_and_conditions" json:"terms_and_conditions"`
+	SubServiceCount        int64            `db:"sub_service_count" json:"sub_service_count"`
 }

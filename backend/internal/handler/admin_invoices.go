@@ -24,14 +24,14 @@ func NewAdminInvoicesHandler(pool *pgxpool.Pool, q *db.Queries) *AdminInvoicesHa
 	return &AdminInvoicesHandler{pool: pool, q: q}
 }
 
-// calculateVendorCommissionAmount computes the commission amount from a percentage.
-// The stored VendorCommission is a percentage (e.g. 75 = 75%).
+// calculatePlatformFeeAmount computes the platform fee amount from a percentage.
+// The stored PlatformFeePercentage is a percentage (e.g. 75 = 75%).
 // Returns the monetary amount: total * percentage / 100.
-func calculateVendorCommissionAmount(invoice db.Invoice) float64 {
-	if !invoice.VendorCommission.Valid || invoice.VendorCommission.Int == nil {
+func calculatePlatformFeeAmount(invoice db.Invoice) float64 {
+	if !invoice.PlatformFeePercentage.Valid || invoice.PlatformFeePercentage.Int == nil {
 		return 0
 	}
-	pct, err := strconv.ParseFloat(pgNumericToString(invoice.VendorCommission), 64)
+	pct, err := strconv.ParseFloat(pgNumericToString(invoice.PlatformFeePercentage), 64)
 	if err != nil {
 		return 0
 	}
@@ -42,8 +42,18 @@ func calculateVendorCommissionAmount(invoice db.Invoice) float64 {
 	return (total * pct) / 100
 }
 
+// calculateVendorPayoutAmount computes the vendor payout after the platform fee is deducted.
+// Vendor payout = total - platform fee.
+func calculateVendorPayoutAmount(invoice db.Invoice) float64 {
+	total, err := strconv.ParseFloat(pgNumericToString(invoice.Total), 64)
+	if err != nil {
+		return 0
+	}
+	return total - calculatePlatformFeeAmount(invoice)
+}
+
 // createIncomeForPaidInvoice creates an income record for a paid invoice.
-// Net income = invoice total - worker commissions - vendor commission.
+// Net income = platform fee - worker commissions (vendors now pay us a percentage).
 func createIncomeForPaidInvoice(ctx context.Context, qtx *db.Queries, invoice db.Invoice) error {
 	commList, _ := qtx.ListInvoiceCommissions(ctx, invoice.ID)
 	var totalCommission float64
@@ -52,11 +62,9 @@ func createIncomeForPaidInvoice(ctx context.Context, qtx *db.Queries, invoice db
 		totalCommission += amt
 	}
 
-	vendorCommission := calculateVendorCommissionAmount(invoice)
+	platformFee := calculatePlatformFeeAmount(invoice)
 
-	totalStr := pgNumericToString(invoice.Total)
-	total, _ := strconv.ParseFloat(totalStr, 64)
-	netIncome := total - totalCommission - vendorCommission
+	netIncome := platformFee - totalCommission
 	if netIncome < 0 {
 		netIncome = 0
 	}
@@ -89,11 +97,9 @@ func updateIncomeForPaidInvoice(ctx context.Context, qtx *db.Queries, invoice db
 		totalCommission += amt
 	}
 
-	vendorCommission := calculateVendorCommissionAmount(invoice)
+	platformFee := calculatePlatformFeeAmount(invoice)
 
-	totalStr := pgNumericToString(invoice.Total)
-	total, _ := strconv.ParseFloat(totalStr, 64)
-	netIncome := total - totalCommission - vendorCommission
+	netIncome := platformFee - totalCommission
 	if netIncome < 0 {
 		netIncome = 0
 	}
@@ -186,26 +192,26 @@ func processInvoicePayment(ctx context.Context, qtx *db.Queries, invoice db.Invo
 		}
 	}
 
-	// 4. Deduct vendor commission from account
-	vendorCommissionAmt := calculateVendorCommissionAmount(invoice)
-	if vendorCommissionAmt > 0 && invoice.RequestID.Valid {
-		vcStr := fmt.Sprintf("%.2f", vendorCommissionAmt)
-		deltaStr := "-" + vcStr
+	// 4. Deduct vendor payout from account (vendor keeps total - platform fee)
+	vendorPayoutAmt := calculateVendorPayoutAmount(invoice)
+	if vendorPayoutAmt > 0 && invoice.RequestID.Valid {
+		payoutStr := fmt.Sprintf("%.2f", vendorPayoutAmt)
+		deltaStr := "-" + payoutStr
 		if _, err := qtx.UpdateAccountBalance(ctx, db.UpdateAccountBalanceParams{
 			ID:             accountID,
 			CurrentBalance: stringToPgNumeric(&deltaStr),
 		}); err != nil {
-			return fmt.Errorf("deduct vendor commission: %w", err)
+			return fmt.Errorf("deduct vendor payout: %w", err)
 		}
 		if _, err := qtx.CreateAccountTransaction(ctx, db.CreateAccountTransactionParams{
 			AccountID:       accountID,
-			TransactionType: "vendor_commission_payout",
-			Amount:          stringToPgNumeric(&vcStr),
-			Description:     fmt.Sprintf("Vendor commission for invoice %s", invoice.InvoiceNumber),
+			TransactionType: "vendor_payout",
+			Amount:          stringToPgNumeric(&payoutStr),
+			Description:     fmt.Sprintf("Vendor payout for invoice %s", invoice.InvoiceNumber),
 			ReferenceType:   func() *string { s := "invoice"; return &s }(),
 			ReferenceID:     pgtype.UUID{Bytes: invoice.ID, Valid: true},
 		}); err != nil {
-			return fmt.Errorf("create vendor commission transaction: %w", err)
+			return fmt.Errorf("create vendor payout transaction: %w", err)
 		}
 	}
 
@@ -257,15 +263,15 @@ func reverseInvoicePayment(ctx context.Context, qtx *db.Queries, invoice db.Invo
 		}
 	}
 
-	// 3. Reverse vendor commission deduction
-	vendorCommissionAmt := calculateVendorCommissionAmount(invoice)
-	if vendorCommissionAmt > 0 && invoice.RequestID.Valid {
-		vcStr := fmt.Sprintf("%.2f", vendorCommissionAmt)
+	// 3. Reverse vendor payout deduction
+	vendorPayoutAmt := calculateVendorPayoutAmount(invoice)
+	if vendorPayoutAmt > 0 && invoice.RequestID.Valid {
+		payoutStr := fmt.Sprintf("%.2f", vendorPayoutAmt)
 		if _, err := qtx.UpdateAccountBalance(ctx, db.UpdateAccountBalanceParams{
 			ID:             accountID,
-			CurrentBalance: stringToPgNumeric(&vcStr),
+			CurrentBalance: stringToPgNumeric(&payoutStr),
 		}); err != nil {
-			return fmt.Errorf("reverse vendor commission: %w", err)
+			return fmt.Errorf("reverse vendor payout: %w", err)
 		}
 	}
 
@@ -377,7 +383,7 @@ func (h *AdminInvoicesHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Total              string          `json:"total"`
 		Notes              *string         `json:"notes"`
 		Status             string          `json:"status"`
-		VendorCommission   *string         `json:"vendorCommission"`
+		PlatformFeePercentage   *string         `json:"platformFeePercentage"`
 		LineItems          []lineItemInput `json:"lineItems"`
 		Commissions        []commissionInput `json:"commissions"`
 	}](r)
@@ -419,7 +425,7 @@ func (h *AdminInvoicesHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Total:              stringToPgNumericOrZero(&body.Total),
 		Notes:              body.Notes,
 		Status:             body.Status,
-		VendorCommission:   stringToPgNumericOrZero(body.VendorCommission),
+		PlatformFeePercentage:   stringToPgNumericOrZero(body.PlatformFeePercentage),
 	}
 
 	if body.RequestID != nil {
@@ -597,7 +603,7 @@ func (h *AdminInvoicesHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Total              *string           `json:"total"`
 		Notes              *string           `json:"notes"`
 		Status             *string           `json:"status"`
-		VendorCommission   *string           `json:"vendorCommission"`
+		PlatformFeePercentage   *string           `json:"platformFeePercentage"`
 		LineItems          []lineItemInput   `json:"lineItems"`
 		Commissions        []commissionInput `json:"commissions"`
 	}](r)
@@ -635,11 +641,11 @@ func (h *AdminInvoicesHandler) Update(w http.ResponseWriter, r *http.Request) {
 			Total:              stringToPgNumericOrZero(body.Total),
 			Notes:              body.Notes,
 			Status:             body.Status,
-			VendorCommission: func() pgtype.Numeric {
-				if body.VendorCommission != nil {
-					return stringToPgNumeric(body.VendorCommission)
+			PlatformFeePercentage: func() pgtype.Numeric {
+				if body.PlatformFeePercentage != nil {
+					return stringToPgNumeric(body.PlatformFeePercentage)
 				}
-				return existingInvoice.VendorCommission
+				return existingInvoice.PlatformFeePercentage
 			}(),
 		}
 		invoice, err = qtx.UpdateInvoice(r.Context(), params)
@@ -729,11 +735,11 @@ func (h *AdminInvoicesHandler) Update(w http.ResponseWriter, r *http.Request) {
 				Total:              stringToPgNumericOrZero(body.Total),
 				Notes:              body.Notes,
 				Status:             body.Status,
-				VendorCommission: func() pgtype.Numeric {
-					if body.VendorCommission != nil {
-						return stringToPgNumeric(body.VendorCommission)
+				PlatformFeePercentage: func() pgtype.Numeric {
+					if body.PlatformFeePercentage != nil {
+						return stringToPgNumeric(body.PlatformFeePercentage)
 					}
-					return existingInvoice.VendorCommission
+					return existingInvoice.PlatformFeePercentage
 				}(),
 			}
 			invoice, err = qtx.UpdateInvoice(r.Context(), params)
@@ -812,11 +818,11 @@ func (h *AdminInvoicesHandler) Update(w http.ResponseWriter, r *http.Request) {
 				Total:              stringToPgNumericOrZero(body.Total),
 				Notes:              body.Notes,
 				Status:             body.Status,
-				VendorCommission: func() pgtype.Numeric {
-					if body.VendorCommission != nil {
-						return stringToPgNumeric(body.VendorCommission)
+				PlatformFeePercentage: func() pgtype.Numeric {
+					if body.PlatformFeePercentage != nil {
+						return stringToPgNumeric(body.PlatformFeePercentage)
 					}
-					return existingInvoice.VendorCommission
+					return existingInvoice.PlatformFeePercentage
 				}(),
 			}
 			invoice, err = h.q.UpdateInvoice(r.Context(), params)
