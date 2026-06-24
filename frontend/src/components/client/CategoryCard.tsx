@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import type { CategoryWithCount } from "@/types/api";
+import { resolveAssetUrl } from "@/lib/api";
 
 interface CategoryCardProps {
 	category: CategoryWithCount;
@@ -52,7 +53,7 @@ function getCategoryImage(categoryName: string): string {
 }
 
 export function CategoryCard({ category }: CategoryCardProps) {
-	const imageUrl = category.image_url || getCategoryImage(category.name);
+	const imageUrl = resolveAssetUrl(category.image_url) || getCategoryImage(category.name);
 	const serviceCount = category.sub_service_count;
 
 	return (

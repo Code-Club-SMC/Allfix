@@ -4,6 +4,7 @@ import { useCategoryDetail } from "@/hooks/useCategories";
 import { ServiceCard } from "@/components/client/ServiceCard";
 import { useCartStore, computeItemCount } from "@/state/cart";
 import { CartDrawer } from "@/components/client/CartDrawer";
+import { resolveAssetUrl } from "@/lib/api";
 
 const PLACEHOLDER_IMAGES: Record<string, string> = {
 	"ac services": "https://images.unsplash.com/photo-1631545806609-3c480b8b2d1e?w=1200&h=400&fit=crop",
@@ -67,7 +68,7 @@ export default function CategoryDetail() {
 	}
 
 	const { category, services } = data;
-	const heroImage = category.image_url || getCategoryHeroImage(category.name);
+	const heroImage = resolveAssetUrl(category.image_url) || getCategoryHeroImage(category.name);
 
 	return (
 		<div className="min-h-screen bg-surface">

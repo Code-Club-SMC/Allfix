@@ -1,6 +1,7 @@
 import { Star, ShoppingCart, Check, X as XIcon } from "lucide-react";
 import type { Service } from "@/types/api";
 import { useCartStore } from "@/state/cart";
+import { resolveAssetUrl } from "@/lib/api";
 
 interface ServiceCardProps {
 	service: Service;
@@ -67,7 +68,7 @@ export function ServiceCard({ service, categoryName, categoryId }: ServiceCardPr
 	const discountedPrice = price * (1 - discountPercentage / 100);
 	const rating = service.rating ? parseFloat(service.rating) : 4.5;
 
-	const imageUrl = service.image_url || getServiceImage(service.name);
+	const imageUrl = resolveAssetUrl(service.image_url) || getServiceImage(service.name);
 
 	const tc = service.terms_and_conditions || {
 		includes: [],

@@ -11,7 +11,7 @@ import {
 	useUpdateService,
 } from "@/hooks/useServices";
 import { useClearData } from "@/hooks/useAdmin";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, resolveAssetUrl } from "@/lib/api";
 import type { TermsAndConditions } from "@/types/api";
 
 const blankForm = () => ({
@@ -61,6 +61,18 @@ const Settings = () => {
 
 	const openAdd = () => {
 		setForm(blankForm());
+		setEditId(null);
+		setShowAdd(true);
+		setNewInclude("");
+		setNewExclude("");
+	};
+
+	const openAddForCategory = (categoryId: string) => {
+		setForm({
+			...blankForm(),
+			parentId: categoryId,
+			isSubcategory: true,
+		});
 		setEditId(null);
 		setShowAdd(true);
 		setNewInclude("");
@@ -199,7 +211,11 @@ const Settings = () => {
 					<div className="border-b border-border bg-subtle/40 px-5 py-4">
 						<div className="mb-3 flex items-center justify-between">
 							<h3 className="text-[13px] font-normal">
-								{editId ? "Edit Service" : "New Service"}
+								{editId
+									? "Edit Service"
+									: form.parentId
+										? `Add Service to ${serviceList.find((s: any) => s.id === form.parentId)?.name ?? "Category"}`
+										: "New Service"}
 							</h3>
 							<button
 								onClick={closeForm}
@@ -228,29 +244,45 @@ const Settings = () => {
 								/>
 							</Field>
 							<Field label="Parent Category">
-								<select
-									className="h-9 w-full rounded-md border border-border bg-background px-3 text-[13px] disabled:opacity-50 disabled:cursor-not-allowed"
-									value={form.parentId}
-									onChange={(e) =>
-										setForm((p) => ({ ...p, parentId: e.target.value, isSubcategory: !!e.target.value }))
-									}
-									disabled={!hasCategories}
-								>
-									<option value="">{hasCategories ? "Top-level category" : "No categories yet"}</option>
-									{serviceList
-										.filter((s: any) => !s.is_subcategory && s.id !== editId)
-										.map((s: any) => (
-											<option key={s.id} value={s.id}>{s.name}</option>
-										))}
-									</select>
-								{!hasCategories ? (
-									<p className="mt-1 text-[11px] text-warning">
-										Create a top-level category first, then add services under it.
-									</p>
+								{form.parentId ? (
+									<>
+										<div className="flex h-9 items-center gap-2 rounded-md border border-border bg-subtle px-3 text-[13px]">
+											<span className="text-muted-foreground">Adding to:</span>
+											<span className="font-medium text-foreground">
+												{serviceList.find((s: any) => s.id === form.parentId)?.name ?? "—"}
+											</span>
+										</div>
+										<p className="mt-1 text-[11px] text-muted-foreground">
+											This service will be created as a sub-service of the selected category.
+										</p>
+									</>
 								) : (
-									<p className="mt-1 text-[11px] text-muted-foreground">
-										Select a parent to make this a sub-service
-									</p>
+									<>
+										<select
+											className="h-9 w-full rounded-md border border-border bg-background px-3 text-[13px] disabled:opacity-50 disabled:cursor-not-allowed"
+											value={form.parentId}
+											onChange={(e) =>
+												setForm((p) => ({ ...p, parentId: e.target.value, isSubcategory: !!e.target.value }))
+											}
+											disabled={!hasCategories}
+										>
+											<option value="">{hasCategories ? "Top-level category" : "No categories yet"}</option>
+											{serviceList
+												.filter((s: any) => !s.is_subcategory && s.id !== editId)
+												.map((s: any) => (
+													<option key={s.id} value={s.id}>{s.name}</option>
+												))}
+										</select>
+										{!hasCategories ? (
+											<p className="mt-1 text-[11px] text-warning">
+												Create a top-level category first, then add services under it.
+											</p>
+										) : (
+											<p className="mt-1 text-[11px] text-muted-foreground">
+												Select a parent to make this a sub-service
+											</p>
+										)}
+									</>
 								)}
 							</Field>
 							<Field label="Price (Rs)">
@@ -293,17 +325,17 @@ const Settings = () => {
 							</Field>
 							<Field label="Service Image" className="sm:col-span-2">
 								<div className="space-y-3">
-									{form.imageUrl && (
-										<div className="relative aspect-video w-full max-w-xs overflow-hidden rounded-lg border border-border">
-											<img
-												src={form.imageUrl}
-												alt="Preview"
-												className="h-full w-full object-cover"
-												onError={(e) => {
-													const target = e.target as HTMLImageElement;
-													target.style.display = "none";
-												}}
-											/>
+								{form.imageUrl && (
+									<div className="relative aspect-video w-full max-w-xs overflow-hidden rounded-lg border border-border">
+										<img
+											src={resolveAssetUrl(form.imageUrl)}
+											alt="Preview"
+											className="h-full w-full object-cover"
+											onError={(e) => {
+												const target = e.target as HTMLImageElement;
+												target.style.display = "none";
+											}}
+										/>
 											<button
 												type="button"
 												onClick={() => setForm((p) => ({ ...p, imageUrl: "" }))}
@@ -541,6 +573,15 @@ const Settings = () => {
 											</td>
 									<td className="px-5 py-3">
 										<div className="flex items-center justify-end gap-3">
+											{!s.is_subcategory && (
+												<button
+													onClick={() => openAddForCategory(s.id)}
+													className="flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
+												>
+													<Plus className="h-3 w-3" />
+													Add Service
+												</button>
+											)}
 											<button
 												onClick={() => openEdit(s)}
 												className="flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
