@@ -49,6 +49,8 @@ export function useCreateService() {
 			qc.invalidateQueries({ queryKey: ["services"] });
 			qc.invalidateQueries({ queryKey: ["services", "hierarchical"] });
 			qc.invalidateQueries({ queryKey: ["services", "categories"] });
+			qc.invalidateQueries({ queryKey: ["serviceCategories"] });
+			qc.invalidateQueries({ queryKey: ["categoryDetail"] });
 		},
 	});
 }
@@ -80,6 +82,8 @@ export function useUpdateService() {
 			qc.invalidateQueries({ queryKey: ["services"] });
 			qc.invalidateQueries({ queryKey: ["services", "hierarchical"] });
 			qc.invalidateQueries({ queryKey: ["services", "categories"] });
+			qc.invalidateQueries({ queryKey: ["serviceCategories"] });
+			qc.invalidateQueries({ queryKey: ["categoryDetail"] });
 		},
 	});
 }
@@ -94,6 +98,8 @@ export function useDeleteService() {
 			qc.invalidateQueries({ queryKey: ["services"] });
 			qc.invalidateQueries({ queryKey: ["services", "hierarchical"] });
 			qc.invalidateQueries({ queryKey: ["services", "categories"] });
+			qc.invalidateQueries({ queryKey: ["serviceCategories"] });
+			qc.invalidateQueries({ queryKey: ["categoryDetail"] });
 		},
 	});
 }
