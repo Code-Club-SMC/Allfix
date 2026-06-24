@@ -6,14 +6,21 @@ import { CartDrawer } from "@/components/client/CartDrawer";
 import { useCartStore, computeItemCount } from "@/state/cart";
 import { FAKE_REVIEWS, GOOGLE_RATING } from "@/data/reviews";
 import { Loader2 } from "lucide-react";
+import { useEffect } from "react";
 
 export default function Catalog() {
 	const navigate = useNavigate();
 	const { data: categories, isLoading, isError } = useServiceCategories();
 
 	const toggleCart = useCartStore((state) => state.toggleCart);
+	const closeCart = useCartStore((state) => state.closeCart);
 	const items = useCartStore((state) => state.items);
 	const itemCount = computeItemCount(items);
+
+	// Close cart when navigating to main page
+	useEffect(() => {
+		closeCart();
+	}, [closeCart]);
 
 	const handleCheckout = () => {
 		useCartStore.getState().closeCart();

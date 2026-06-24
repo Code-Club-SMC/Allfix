@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -19,14 +20,15 @@ func NewAdminServicesHandler(q *db.Queries) *AdminServicesHandler {
 // POST /api/admin/services
 func (h *AdminServicesHandler) Create(w http.ResponseWriter, r *http.Request) {
 	body, err := decode[struct {
-		Name                string   `json:"name"`
-		Description         string   `json:"description"`
-		Icon                string   `json:"icon"`
-		ParentID            *string  `json:"parentId"`
-		IsSubcategory       bool     `json:"isSubcategory"`
-		ImageUrl            *string  `json:"imageUrl"`
-		Price               *string  `json:"price"`
-		DiscountPercentage  *int32   `json:"discountPercentage"`
+		Name                string              `json:"name"`
+		Description         string              `json:"description"`
+		Icon                string              `json:"icon"`
+		ParentID            *string             `json:"parentId"`
+		IsSubcategory       bool                `json:"isSubcategory"`
+		ImageUrl            *string             `json:"imageUrl"`
+		Price               *string             `json:"price"`
+		DiscountPercentage  *int32              `json:"discountPercentage"`
+		TermsAndConditions  *json.RawMessage    `json:"termsAndConditions"`
 	}](r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
@@ -63,6 +65,10 @@ func (h *AdminServicesHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	if body.DiscountPercentage != nil {
 		params.DiscountPercentage = *body.DiscountPercentage
+	}
+
+	if body.TermsAndConditions != nil {
+		params.TermsAndConditions = *body.TermsAndConditions
 	}
 
 	if body.ParentID != nil && *body.ParentID != "" {
@@ -103,16 +109,17 @@ func (h *AdminServicesHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	body, err := decode[struct {
-		Name                *string  `json:"name"`
-		Description         *string  `json:"description"`
-		Icon                *string  `json:"icon"`
-		ParentID            *string  `json:"parentId"`
-		IsSubcategory       *bool    `json:"isSubcategory"`
-		ImageUrl            *string  `json:"imageUrl"`
-		Price               *string  `json:"price"`
-		DiscountPercentage  *int32   `json:"discountPercentage"`
-		Rating              *string  `json:"rating"`
-		ReviewCount         *int32   `json:"reviewCount"`
+		Name                *string             `json:"name"`
+		Description         *string             `json:"description"`
+		Icon                *string             `json:"icon"`
+		ParentID            *string             `json:"parentId"`
+		IsSubcategory       *bool               `json:"isSubcategory"`
+		ImageUrl            *string             `json:"imageUrl"`
+		Price               *string             `json:"price"`
+		DiscountPercentage  *int32              `json:"discountPercentage"`
+		Rating              *string             `json:"rating"`
+		ReviewCount         *int32              `json:"reviewCount"`
+		TermsAndConditions  *json.RawMessage    `json:"termsAndConditions"`
 	}](r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
@@ -152,6 +159,10 @@ func (h *AdminServicesHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	if body.ReviewCount != nil {
 		params.ReviewCount = body.ReviewCount
+	}
+
+	if body.TermsAndConditions != nil {
+		params.TermsAndConditions = *body.TermsAndConditions
 	}
 
 	if body.ParentID != nil {

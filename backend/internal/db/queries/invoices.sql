@@ -11,7 +11,7 @@ FROM invoices;
 -- name: CreateInvoice :one
 INSERT INTO invoices (
     invoice_number, request_id, client_id, client_name, client_address, client_phone,
-    service_name, service_description, subtotal, total, notes, status, vendor_commission
+    service_name, service_description, subtotal, total, notes, status, platform_fee_percentage
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 RETURNING *;
 
@@ -46,7 +46,7 @@ SET
     total               = COALESCE(sqlc.narg(total), total),
     notes               = COALESCE(sqlc.narg(notes), notes),
     status              = COALESCE(sqlc.narg(status), status),
-    vendor_commission   = COALESCE(sqlc.narg(vendor_commission), vendor_commission),
+    platform_fee_percentage = COALESCE(sqlc.narg(platform_fee_percentage), platform_fee_percentage),
     updated_at          = NOW()
 WHERE id = $1
 RETURNING *;

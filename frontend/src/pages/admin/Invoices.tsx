@@ -100,7 +100,7 @@ const Invoices = () => {
 		Record<string, string>
 	>({});
 	const [createInvoiceStatus, setCreateInvoiceStatus] = useState("draft");
-	const [vendorCommission, setVendorCommission] = useState("");
+	const [platformFeePercentage, setPlatformFeePercentage] = useState("");
 	// Line items for create modal (auto-populated from request services)
 	const [createLineItems, setCreateLineItems] = useState<
 		{ description: string; quantity: number; rate: number }[]
@@ -196,7 +196,7 @@ const Invoices = () => {
 		setWorkerCommissions({});
 		setCreateLineItems([]);
 		setCreateInvoiceStatus("draft");
-		setVendorCommission("");
+		setPlatformFeePercentage("");
 	};
 
 	const handleOpenCreate = () => {
@@ -219,7 +219,7 @@ const Invoices = () => {
 		selectedRequestId &&
 		selectedRequest &&
 		(isVendorRequest
-			? Number(vendorCommission) > 0
+			? Number(platformFeePercentage) > 0
 			: selectedRequest.worker_count > 0) &&
 		createLineItems.length > 0 &&
 		calculatedTotal > 0;
@@ -253,7 +253,7 @@ const Invoices = () => {
 			subtotal: String(calculatedTotal),
 			total: String(calculatedTotal),
 			status: createInvoiceStatus,
-			vendorCommission: vendorCommission || undefined,
+			platformFeePercentage: platformFeePercentage || undefined,
 			lineItems: lineItemsPayload,
 			commissions,
 		};
@@ -286,7 +286,7 @@ const Invoices = () => {
 		commissions: [] as { workerId: string; amount: string }[],
 	});
 
-	const [editVendorCommission, setEditVendorCommission] = useState("");
+	const [editPlatformFeePercentage, setEditPlatformFeePercentage] = useState("");
 
 	const calcTotals = (items: typeof form.lineItems) => {
 		const st = items.reduce((sum, it) => sum + it.quantity * it.rate, 0);
@@ -346,8 +346,8 @@ const Invoices = () => {
 		payload.total = form.total;
 		if (form.notes) payload.notes = form.notes;
 		payload.status = form.status;
-		if (editVendorCommission && Number(editVendorCommission) >= 0) {
-			payload.vendorCommission = editVendorCommission;
+		if (editPlatformFeePercentage && Number(editPlatformFeePercentage) >= 0) {
+			payload.platformFeePercentage = editPlatformFeePercentage;
 		}
 		payload.lineItems = form.lineItems.map((li) => ({
 			description: li.description,
@@ -392,9 +392,9 @@ const Invoices = () => {
 					amount: String(c.amount),
 				})),
 			});
-			setEditVendorCommission(
-				Number(open.vendor_commission || 0) > 0
-					? String(open.vendor_commission)
+			setEditPlatformFeePercentage(
+				Number(open.platform_fee_percentage || 0) > 0
+					? String(open.platform_fee_percentage)
 					: "",
 			);
 		}
@@ -708,23 +708,23 @@ const Invoices = () => {
 									{selectedRequestVendor?.vendor_name || "—"}
 								</span>
 							</div>
-							<Field label="Vendor Commission %">
+							<Field label="Platform Fee %">
 								<TextInput
 									type="number"
 									min="0"
 									max="100"
 									step="0.01"
 									placeholder="e.g. 10"
-									value={vendorCommission}
-									onChange={(e) => setVendorCommission(e.target.value)}
+									value={platformFeePercentage}
+									onChange={(e) => setPlatformFeePercentage(e.target.value)}
 									className="h-8 text-[12px]"
 								/>
 							</Field>
-							{calculatedTotal > 0 && Number(vendorCommission) > 0 && (
+							{calculatedTotal > 0 && Number(platformFeePercentage) > 0 && (
 								<div className="mt-1.5 text-muted-foreground">
 									= PKR{" "}
 									{(
-										(calculatedTotal * Number(vendorCommission)) /
+										(calculatedTotal * Number(platformFeePercentage)) /
 										100
 									).toLocaleString(undefined, { maximumFractionDigits: 2 })}
 								</div>
@@ -789,43 +789,43 @@ const Invoices = () => {
 								</span>
 							</div>
 
-							{/* Live calculation — only relevant when invoice is paid */}
-							{createInvoiceStatus === "paid" && (calculatedTotal > 0 || totalCommissions > 0 || Number(vendorCommission) > 0) && (
-								<div className="space-y-1 border-t border-border pt-2">
-									{calculatedTotal > 0 && (
-										<div className="flex items-center justify-between text-muted-foreground">
-											<span>Invoice Total:</span>
-											<span>+ {fmt(calculatedTotal)}</span>
-										</div>
-									)}
-									{Number(vendorCommission) > 0 && (
-										<div className="flex items-center justify-between text-warning">
-											<span>Vendor Commission ({vendorCommission}%):</span>
-											<span>− {fmt((calculatedTotal * Number(vendorCommission)) / 100)}</span>
-										</div>
-									)}
-									{totalCommissions > 0 && (
-										<div className="flex items-center justify-between text-muted-foreground">
-											<span>Worker Commissions:</span>
-											<span>− {fmt(totalCommissions)}</span>
-										</div>
-									)}
-									<div className="flex items-center justify-between border-t border-border pt-1 font-semibold">
-										<span>Projected Balance:</span>
-										<span className={
-											(Number(accountData.balance ?? 0) + calculatedTotal - (calculatedTotal * Number(vendorCommission)) / 100 - totalCommissions) < 0
-												? "text-destructive" : ""
-										}>
-											{fmt(
-											Number(accountData.balance ?? 0) +
-											calculatedTotal -
-											(calculatedTotal * Number(vendorCommission)) / 100 -
-											totalCommissions
-											)}
-										</span>
+						{/* Live calculation — only relevant when invoice is paid */}
+						{createInvoiceStatus === "paid" && (calculatedTotal > 0 || totalCommissions > 0 || Number(platformFeePercentage) > 0) && (
+							<div className="space-y-1 border-t border-border pt-2">
+								{calculatedTotal > 0 && (
+									<div className="flex items-center justify-between text-muted-foreground">
+										<span>Invoice Total:</span>
+										<span>+ {fmt(calculatedTotal)}</span>
 									</div>
+								)}
+								{isVendorRequest && Number(platformFeePercentage) > 0 && (
+									<div className="flex items-center justify-between text-warning">
+										<span>Vendor Payout ({100 - Number(platformFeePercentage)}%):</span>
+										<span>− {fmt((calculatedTotal * (100 - Number(platformFeePercentage))) / 100)}</span>
+									</div>
+								)}
+								{totalCommissions > 0 && (
+									<div className="flex items-center justify-between text-muted-foreground">
+										<span>Worker Commissions:</span>
+										<span>− {fmt(totalCommissions)}</span>
+									</div>
+								)}
+								<div className="flex items-center justify-between border-t border-border pt-1 font-semibold">
+									<span>Projected Balance:</span>
+									<span className={
+										(Number(accountData.balance ?? 0) + calculatedTotal - (isVendorRequest ? (calculatedTotal * (100 - Number(platformFeePercentage))) / 100 : 0) - totalCommissions) < 0
+											? "text-destructive" : ""
+										}>
+										{fmt(
+										Number(accountData.balance ?? 0) +
+										calculatedTotal -
+										(isVendorRequest ? (calculatedTotal * (100 - Number(platformFeePercentage))) / 100 : 0) -
+										totalCommissions
+										)}
+									</span>
 								</div>
-							)}
+							</div>
+						)}
 						</div>
 					)}
 
@@ -1078,23 +1078,23 @@ const Invoices = () => {
 							})()}
 						</div>
 
-						{open.vendor_commission != null && (
+						{open.platform_fee_percentage != null && (
 							<div className="border-t border-border pt-3">
-								<Field label="Vendor Commission %">
+								<Field label="Platform Fee %">
 									<TextInput
 										type="number"
 										min="0"
 										max="100"
 										step="0.01"
-										value={editVendorCommission}
-										onChange={(e) => setEditVendorCommission(e.target.value)}
+										value={editPlatformFeePercentage}
+										onChange={(e) => setEditPlatformFeePercentage(e.target.value)}
 									/>
 								</Field>
-								{editVendorCommission && Number(editVendorCommission) > 0 && (
+								{editPlatformFeePercentage && Number(editPlatformFeePercentage) > 0 && (
 									<div className="mt-1.5 text-[12px] text-warning">
 										= PKR{" "}
 										{(
-											(Number(form.total) * Number(editVendorCommission)) /
+											(Number(form.total) * Number(editPlatformFeePercentage)) /
 											100
 										).toLocaleString(undefined, { maximumFractionDigits: 2 })}
 									</div>
@@ -1111,21 +1111,21 @@ const Invoices = () => {
 										{fmt(form.total)}
 									</span>
 								</div>
-							{Number(editVendorCommission || open.vendor_commission || 0) > 0 && (
+							{Number(editPlatformFeePercentage || open.platform_fee_percentage || 0) > 0 && (
 								<>
 									<div className="flex items-center justify-between text-warning">
-										<span className="text-[12px]">Vendor Commission ({editVendorCommission || open.vendor_commission}%)</span>
+										<span className="text-[12px]">Platform Fee ({editPlatformFeePercentage || open.platform_fee_percentage}%)</span>
 										<span className="text-[12px]">
-											- {fmt(Number(form.total) * Number(editVendorCommission || open.vendor_commission) / 100)}
+											- {fmt(Number(form.total) * Number(editPlatformFeePercentage || open.platform_fee_percentage) / 100)}
 										</span>
 									</div>
 									<div className="flex items-center justify-between text-success">
 										<span className="text-[12px] font-medium">
-											Net Revenue
+											Vendor Payout
 										</span>
 										<span className="text-[12px] font-medium">
 											{fmt(
-												Number(form.total) * (1 - Number(editVendorCommission || open.vendor_commission) / 100),
+												Number(form.total) * (1 - Number(editPlatformFeePercentage || open.platform_fee_percentage) / 100),
 											)}
 										</span>
 									</div>
@@ -1249,15 +1249,15 @@ const Invoices = () => {
 									{fmt(Number(previewInvoice.total || 0))}
 								</span>
 							</div>
-							{Number(previewInvoice.vendor_commission || 0) > 0 && (
+							{Number(previewInvoice.platform_fee_percentage || 0) > 0 && (
 								<>
 									<div className="flex items-center justify-between text-warning text-[12px]">
-										<span>Vendor Commission ({previewInvoice.vendor_commission}%)</span>
-										<span>- {fmt(Number(previewInvoice.total || 0) * Number(previewInvoice.vendor_commission || 0) / 100)}</span>
+										<span>Platform Fee ({previewInvoice.platform_fee_percentage}%)</span>
+										<span>- {fmt(Number(previewInvoice.total || 0) * Number(previewInvoice.platform_fee_percentage || 0) / 100)}</span>
 									</div>
 									<div className="flex items-center justify-between text-success text-[12px] font-medium border-t border-border pt-1">
-										<span>Net Revenue</span>
-										<span>{fmt(Number(previewInvoice.total || 0) * (1 - Number(previewInvoice.vendor_commission || 0) / 100))}</span>
+										<span>Vendor Payout</span>
+										<span>{fmt(Number(previewInvoice.total || 0) * (1 - Number(previewInvoice.platform_fee_percentage || 0) / 100))}</span>
 									</div>
 								</>
 							)}

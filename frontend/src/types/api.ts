@@ -4,6 +4,12 @@
  */
 
 // ─── Services ─────────────────────────────────────────────────────────────────
+export interface TermsAndConditions {
+	includes: string[];
+	does_not_include: string[];
+	liability_disclaimer: string;
+}
+
 export interface Service {
 	id: string;
 	name: string;
@@ -18,6 +24,7 @@ export interface Service {
 	discount_percentage?: number | null;
 	rating?: string | null;
 	review_count?: number | null;
+	terms_and_conditions?: TermsAndConditions | null;
 }
 
 export interface CategoryWithCount extends Service {
@@ -153,7 +160,7 @@ export interface Invoice {
 	request_id: string | null;
 	subtotal: number;
 	total: number;
-	vendor_commission: number;
+	platform_fee_percentage: number;
 	notes: string | null;
 	status: string;
 	created_at: string;

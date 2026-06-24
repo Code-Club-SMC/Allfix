@@ -63,9 +63,9 @@ const VendorProfile = () => {
 			{/* Overview Cards */}
 			<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
 				<Card className="p-4">
-					<div className="text-[12px] text-muted-foreground">Total Commissions</div>
+					<div className="text-[12px] text-muted-foreground">Total Platform Fees</div>
 					<div className="text-xl font-semibold">{fmt(profile.total_commissions)}</div>
-					<div className="text-[11px] text-muted-foreground">{profile.commission_count} payments</div>
+					<div className="text-[11px] text-muted-foreground">{profile.commission_count} invoices</div>
 				</Card>
 				<Card className="p-4">
 					<div className="text-[12px] text-muted-foreground">Jobs Assigned</div>
@@ -128,7 +128,8 @@ const VendorProfile = () => {
 							<tr className="border-b border-border text-left">
 								<th className="cb-label px-3 py-2">Invoice #</th>
 								<th className="cb-label px-3 py-2">Total</th>
-								<th className="cb-label px-3 py-2">Commission</th>
+									<th className="cb-label px-3 py-2">Platform Fee %</th>
+									<th className="cb-label px-3 py-2">Platform Fee Amount</th>
 								<th className="cb-label px-3 py-2">Status</th>
 								<th className="cb-label px-3 py-2">Date</th>
 							</tr>
@@ -138,7 +139,8 @@ const VendorProfile = () => {
 								<tr key={inv.id} className="border-b border-border/60 text-[12.5px]">
 									<td className="px-3 py-2 font-medium">{inv.invoice_number}</td>
 									<td className="px-3 py-2">{fmt(inv.total)}</td>
-									<td className="px-3 py-2 font-medium">{fmt(inv.vendor_commission)}</td>
+									<td className="px-3 py-2">{inv.platform_fee_percentage ?? 0}%</td>
+									<td className="px-3 py-2 font-medium">{fmt(Number(inv.total || 0) * Number(inv.platform_fee_percentage || 0) / 100)}</td>
 									<td className="px-3 py-2">
 										<span className="capitalize">{inv.status}</span>
 									</td>
@@ -149,7 +151,7 @@ const VendorProfile = () => {
 							))}
 							{invoices.length === 0 && (
 								<tr>
-									<td colSpan={5} className="py-8 text-center text-muted-foreground">
+									<td colSpan={6} className="py-8 text-center text-muted-foreground">
 										No invoices yet.
 									</td>
 								</tr>

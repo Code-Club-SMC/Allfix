@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import type { Service, ServiceWithParent } from "@/types/api";
+import type { Service, ServiceWithParent, TermsAndConditions } from "@/types/api";
 
 /** GET /api/services — public, no auth required */
 export function useServices() {
@@ -36,6 +36,10 @@ export function useCreateService() {
 			icon: string;
 			parentId?: string;
 			isSubcategory?: boolean;
+			imageUrl?: string | null;
+			price?: string | null;
+			discountPercentage?: number;
+			termsAndConditions?: TermsAndConditions;
 		}) =>
 			apiFetch<Service>("/api/admin/services", {
 				method: "POST",
@@ -63,6 +67,10 @@ export function useUpdateService() {
 			icon?: string;
 			parentId?: string;
 			isSubcategory?: boolean;
+			imageUrl?: string | null;
+			price?: string | null;
+			discountPercentage?: number;
+			termsAndConditions?: TermsAndConditions;
 		}) =>
 			apiFetch<Service>(`/api/admin/services/${id}`, {
 				method: "PATCH",

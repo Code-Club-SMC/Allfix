@@ -79,7 +79,7 @@ SELECT
     v.contact_email,
     v.notes,
     COALESCE(SUM(
-        CASE WHEN i.status = 'paid' THEN i.vendor_commission ELSE 0 END
+        CASE WHEN i.status = 'paid' THEN ROUND(i.total * i.platform_fee_percentage / 100, 2) ELSE 0 END
     ), 0)::numeric AS total_commissions,
     COUNT(CASE WHEN i.status = 'paid' THEN 1 END)::integer AS commission_count,
     COUNT(r.id)::integer AS jobs_count
@@ -94,7 +94,7 @@ SELECT
     i.id,
     i.invoice_number,
     i.total,
-    i.vendor_commission,
+    i.platform_fee_percentage,
     i.status,
     i.created_at,
     r.request_number,
