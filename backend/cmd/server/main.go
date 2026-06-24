@@ -41,11 +41,6 @@ func main() {
 	defer pool.Close()
 	slog.Info("connected to database")
 
-	if err := recoverDirtyMigration19(pool); err != nil {
-		slog.Error("recover dirty migration 19", "error", err)
-		os.Exit(1)
-	}
-
 	if err := runMigrations(cfg.DatabaseURL); err != nil {
 		slog.Error("run migrations", "error", err)
 		os.Exit(1)
